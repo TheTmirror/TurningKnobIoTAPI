@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="drehbinding"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+	<thing-type id="drehknopf">
+        <label>Drehknopf</label>
+        <description>Der Drehknopf als Thing</description>
+        
+        <channels>
+            <channel id="numberOfGestures" typeId="information"/>
+        </channels>
+        
+        <representation-property>uuid</representation-property>
+    </thing-type>
+    
+    <channel-type id="information">
+        <item-type>Number</item-type>
+        <label>Informationen</label>
+        <description>Informationschannel für die Anzahl der Gesten</description>
+    </channel-type>
+
+</thing:thing-descriptions>
