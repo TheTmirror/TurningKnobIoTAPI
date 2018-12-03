@@ -5,20 +5,31 @@
 	xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
 
 	<thing-type id="drehknopf">
-        <label>Drehknopf</label>
-        <description>Der Drehknopf als Thing</description>
-        
-        <channels>
-            <channel id="numberOfGestures" typeId="information"/>
-        </channels>
-        
-        <representation-property>uuid</representation-property>
-    </thing-type>
-    
-    <channel-type id="information">
-        <item-type>Number</item-type>
-        <label>Informationen</label>
-        <description>Informationschannel für die Anzahl der Gesten</description>
+		<label>Drehknopf</label>
+		<description>Der Drehknopf als Thing</description>
+
+		<!-- <channels> <channel id="numberOfGestures" typeId="information"/> </channels> -->
+		<channels>
+			<channel id="lastMotion" typeId="motionInformation" />
+			<channel id="eventTime" typeId="timestamp" />
+		</channels>
+
+		<representation-property>uuid</representation-property>
+	</thing-type>
+
+	<!-- <channel-type id="information"> <item-type>Number</item-type> <label>Informationen</label> <description>Informationschannel 
+		für die Anzahl der Gesten</description> </channel-type> -->
+
+    <channel-type id = "motionInformation">
+        <item-type>String</item-type>
+        <label>Gestenname</label>
+        <description>Gibt den Namen der letzten ausgeführten Geste an</description>
     </channel-type>
+
+	<channel-type id="timestamp">
+		<item-type>DateTime</item-type>
+		<label>TimeStamp</label>
+		<description>Gibt den Zeitpunkt des letzten Events an</description>
+	</channel-type>
 
 </thing:thing-descriptions>

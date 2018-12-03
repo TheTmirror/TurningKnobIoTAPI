@@ -8,9 +8,9 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant;
 import org.eclipse.smarthome.core.common.ThreadPoolManager;
@@ -29,27 +29,29 @@ public class SubscriptionService {
     private final Map<RESTIOParticipant, String> subscriptions;
     private boolean shutdown = false;
     private boolean running;
+    private final Lock lock;
+    private int callbackPort = -1;
 
     Runnable testListener = new Runnable() {
 
         @Override
         public void run() {
-            while (true) {
-                logger.debug("I'm running!!!!");
-                logger.debug("Gambling for event!");
-                Random r = new Random();
-                if (r.nextInt(10) >= 8) {
-                    logger.debug("Simulated Event");
-                    notifyAllSubscriber("meinTopic");
-                }
-
-                try {
-                    TimeUnit.SECONDS.sleep(2);
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            }
+            // while (true) {
+            // logger.debug("I'm running!!!!");
+            // logger.debug("Gambling for event!");
+            // Random r = new Random();
+            // if (r.nextInt(10) >= 8) {
+            // logger.debug("Simulated Event");
+            // notifyAllSubscriber("meinTopic");
+            // }
+            //
+            // try {
+            // TimeUnit.SECONDS.sleep(2);
+            // } catch (InterruptedException e) {
+            // // TODO Auto-generated catch block
+            // e.printStackTrace();
+            // }
+            // }
         }
     };
 
@@ -59,19 +61,26 @@ public class SubscriptionService {
         public void run() {
             running = true;
             try {
-                ServerSocket callbackSocket = new ServerSocket(2307);
+                ServerSocket callbackSocket = new ServerSocket(0);
+                lock.lock();
+                callbackPort = callbackSocket.getLocalPort();
+                lock.unlock();
 
                 while (!shutdown) {
                     Socket connection = callbackSocket.accept();
                     BufferedReader inFromClient = new BufferedReader(
                             new InputStreamReader(connection.getInputStream()));
                     String clientSentence = inFromClient.readLine();
-                    logger.debug("Received: " + clientSentence);
+                    logger.trace("Received: " + clientSentence);
                     connection.close();
 
-                    TimeUnit.SECONDS.sleep(5);
+                    String topic = decipherTopic(clientSentence);
+                    Map<String, String> values = decipherValues(clientSentence);
+                    notifyAllSubscriber(topic, values);
+
+                    // GGf delay timer = overflood protection
                 }
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
@@ -79,10 +88,11 @@ public class SubscriptionService {
     };
 
     private SubscriptionService() {
+        lock = new ReentrantLock();
         schedular = ThreadPoolManager.getPool(POOL_NAME);
         subscriptions = new HashMap<>();
 
-        schedular.execute(testListener);
+        schedular.execute(callbackListener);
     }
 
     public static synchronized SubscriptionService getInstance() {
@@ -93,23 +103,53 @@ public class SubscriptionService {
         return SubscriptionService.instance;
     }
 
-    public void addSubscription(RESTIOParticipant participant, String topic) {
+    public synchronized void addSubscription(RESTIOParticipant participant, String topic) {
         subscriptions.put(participant, topic);
     }
 
-    public void shutdown() {
+    public synchronized void shutdown() {
         this.shutdown = true;
     }
 
-    private void notifyAllSubscriber(String topic) {
+    private void notifyAllSubscriber(String topic, Map<String, String> values) {
         for (Entry<RESTIOParticipant, String> entry : subscriptions.entrySet()) {
             RESTIOParticipant participant = entry.getKey();
             String subscribedTopic = entry.getValue();
 
             if (subscribedTopic.equals(topic)) {
-                participant.onSubcriptionEvent(topic, null);
+                participant.onSubcriptionEvent(topic, values);
             }
         }
+    }
+
+    public int getCallbackPort() {
+        int callbackPort = -1;
+        lock.lock();
+        callbackPort = this.callbackPort;
+        lock.unlock();
+        return callbackPort;
+    }
+
+    private String decipherTopic(String crypticText) {
+        return crypticText.substring("topic:".length(), crypticText.indexOf(";"));
+    }
+
+    private Map<String, String> decipherValues(String crypticText) {
+        Map<String, String> values = new HashMap<>();
+        crypticText = crypticText.substring(crypticText.indexOf(";") + 1, crypticText.length());
+        logger.debug("CrypticText without topic:{}", crypticText);
+
+        while (crypticText.length() > 0) {
+            logger.debug("Index: " + crypticText.indexOf(":"));
+            String param = crypticText.substring(0, crypticText.indexOf(":"));
+            String value = crypticText.substring(crypticText.indexOf(":") + 1, crypticText.indexOf(";"));
+
+            values.put(param, value);
+
+            crypticText = crypticText.substring(crypticText.indexOf(";") + 1, crypticText.length());
+        }
+
+        return values;
     }
 
 }

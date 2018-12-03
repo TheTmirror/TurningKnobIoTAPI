@@ -40,7 +40,7 @@ public class RESTIOServiceImpl implements RESTIOService {
 
     @Override
     public void addSubscription(RESTIOParticipant participant, String topic) {
-        String urlString = "http://localhost:9090/webapi/subscribe";
+        String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
         try {
             url = new URL(urlString);
@@ -49,16 +49,18 @@ public class RESTIOServiceImpl implements RESTIOService {
             e.printStackTrace();
         }
         Map<String, String> params = new HashMap<>();
+        params.put("identifier", participant.getIdentifier());
         params.put("topic", topic);
+        params.put("callbackPort", "" + SubscriptionService.getInstance().getCallbackPort());
         RESTRequest request = new RESTRequest(POST, url, params);
 
-        subService.addSubscription(participant, topic);
         restService.makeRestCall(request);
+        subService.addSubscription(participant, topic);
     }
 
     @Override
     public void removeSubscription(RESTIOParticipant participant, String topic) {
-        String urlString = "http://localhost:9090/webapi/unsubscribe";
+        String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
         try {
             url = new URL(urlString);
@@ -67,6 +69,7 @@ public class RESTIOServiceImpl implements RESTIOService {
             e.printStackTrace();
         }
         Map<String, String> params = new HashMap<>();
+        params.put("identifier", participant.getIdentifier());
         params.put("topic", topic);
         RESTRequest request = new RESTRequest(DELETE, url, params);
 

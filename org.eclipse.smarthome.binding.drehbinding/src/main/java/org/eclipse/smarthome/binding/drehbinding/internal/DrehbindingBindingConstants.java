@@ -37,11 +37,18 @@ public class DrehbindingBindingConstants {
             .unmodifiableSet(Stream.of(THING_TYPE_DREHKNOPF).collect(Collectors.toSet()));
 
     // List of all Channel ids
-    public static final String CHANNEL_NUMBER = "numberOfGestures";
+    public static final String CHANNEL_LAST_MOTION = "lastMotion";
+    public static final String CHANNEL_EVENT_TIME = "eventTime";
 
     // Thing Property Constants
     public static final String HOST = "host";
     public static final String SERIAL = "serialNumber";
 
     public static final String UDN = "udn";
+
+    // Topic Constants
+    public static final String TOPIC_NEW_MOTION = "newMotionEvent";
+
+    // Topic Values Constants
+    public static final String NAME = "name";
 }

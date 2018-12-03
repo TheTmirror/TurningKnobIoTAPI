@@ -1,8 +1,8 @@
 package org.eclipse.smarthome.binding.drehbinding.internal.REST;
 
+import java.util.Map;
+
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.smarthome.core.thing.ThingUID;
 
 public interface RESTIOParticipant {
 
@@ -22,8 +22,8 @@ public interface RESTIOParticipant {
      * @param Identifier of the service that was subscriped to
      * @param values
      */
-    public void onSubcriptionEvent(@NonNull String topic, @Nullable String values);
+    public void onSubcriptionEvent(@NonNull String topic, @NonNull Map<String, String> values);
 
-    public ThingUID getThingUID();
+    public String getIdentifier();
 
 }
