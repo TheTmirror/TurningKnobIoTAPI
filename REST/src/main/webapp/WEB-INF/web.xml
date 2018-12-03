@@ -15,4 +15,9 @@
         <servlet-name>Jersey Web Application</servlet-name>
         <url-pattern>/webapi/*</url-pattern>
     </servlet-mapping>
+    
+    <listener>
+    	<listener-class>com.tris.background.EventTask</listener-class>
+    </listener>
+    
 </web-app>

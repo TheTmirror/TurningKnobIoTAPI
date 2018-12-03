@@ -47,7 +47,7 @@ public class SearchListener extends Thread {
 			while (true) {
 				receiveMessage();
 				if (isSearch()) {
-					System.out.println("Here");
+//					System.out.println("Here");
 					sendResponse(buildResponse());
 				}
 
@@ -62,10 +62,10 @@ public class SearchListener extends Thread {
 	}
 
 	private void receiveMessage() throws IOException {
-		System.out.println("Waiting for message");
+//		System.out.println("Waiting for message");
 //		System.out.println(multiSocket.getLocalAddress() + ":" + multiSocket.getLocalPort() + multiSocket.getPort());
 		multiSocket.receive(recv);
-		System.out.println("Received message from " + recv.getAddress() + ":" + recv.getPort());
+//		System.out.println("Received message from " + recv.getAddress() + ":" + recv.getPort());
 
 //		if (recv.getLength() > 0) {
 //			String data = new String(recv.getData());
@@ -89,8 +89,8 @@ public class SearchListener extends Thread {
 
 	private void sendResponse(String msg) throws IOException {
 		sendSocket.send(new DatagramPacket(msg.getBytes(), msg.getBytes().length, recv.getAddress(), recv.getPort()));
-		System.out.println("Sent out message to: " + recv.getAddress() + ":" + recv.getPort());
-		System.out.println(msg);
+//		System.out.println("Sent out message to: " + recv.getAddress() + ":" + recv.getPort());
+//		System.out.println(msg);
 	}
 	
 	private boolean isDelayEnabled() {

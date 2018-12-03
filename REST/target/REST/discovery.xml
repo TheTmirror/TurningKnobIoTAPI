@@ -5,7 +5,7 @@
 		<minor>0</minor>
 	</specVersion>
 	<!-- Optional URLBase -->
-	<URLBase>http://localhost:8090/demorest/</URLBase>
+	<URLBase>http://localhost:9090/</URLBase>
 	<device>
 		<deviceType>urn:tristan:device:turningknob:1</deviceType>
 		<friendlyName>Drehknopf Friendly Name</friendlyName>
@@ -22,9 +22,9 @@
 			<service>
 				<serviceType>urn:tristan:service:testService:1</serviceType>
 				<serviceId>urn:tristan:serviceId:testService</serviceId>
-				<SCPDURL>/demorest/testservice.xml</SCPDURL>
-				<controlURL>/demorest/api/testService/control</controlURL>
-				<eventSubURL>/demorest/api/testService/event</eventSubURL>
+				<SCPDURL>/testservice.xml</SCPDURL>
+				<controlURL>/webapi/testService/control</controlURL>
+				<eventSubURL>/webapi/testService/event</eventSubURL>
 			</service>
 		</serviceList>
 		<!-- Optional <deviceList> </deviceList> -->

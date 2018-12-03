@@ -12,8 +12,8 @@ public class UpnpManager extends Thread{
 			SearchListener search = new SearchListener();
 			search.start();
 			
-			Reader reader = new Reader();
-			reader.start();
+//			Reader reader = new Reader();
+//			reader.start();
 			
 			AktiveManager aktive = new AktiveManager();
 //			aktive.start();
