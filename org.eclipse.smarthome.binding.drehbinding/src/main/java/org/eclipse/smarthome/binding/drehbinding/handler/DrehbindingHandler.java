@@ -22,6 +22,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingConfiguration;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
+import org.eclipse.smarthome.core.library.types.DateTimeType;
 import org.eclipse.smarthome.core.library.types.StringType;
 import org.eclipse.smarthome.core.thing.Channel;
 import org.eclipse.smarthome.core.thing.ChannelUID;
@@ -48,6 +49,8 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     private final RESTIOService service;
 
+    private boolean subscribed;
+
     public DrehbindingHandler(Thing thing, RESTIOService service) {
         super(thing);
         this.service = service;
@@ -55,37 +58,29 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        // if (CHANNEL_NUMBER.equals(channelUID.getId())) {
-        // logger.debug("Cannel UID: {}", channelUID.getAsString());
-        // logger.debug("Commandinstance: {}", command.getClass().toString());
-        //
-        // switch (command.getClass().toString()) {
-        // case "class org.eclipse.smarthome.core.types.RefreshType":
-        // logger.debug("Refresh Command");
-        // break;
-        // case "class org.eclipse.smarthome.core.library.types.DecimalType":
-        // logger.debug("Decimal Command");
-        // DecimalType dCommand = (DecimalType) command;
-        // int value = dCommand.intValue();
-        // String topic = "meinTopic";
-        // switch (value) {
-        // case 1:
-        // logger.debug("Invoking a method");
-        // Map<String, String> params = new HashMap<>();
-        // params.put("myParam", "23");
-        // service.callService("meinService", params);
-        // break;
-        // case 2:
-        // logger.debug("Subscribing to topic");
-        // service.addSubscription(this, topic);
-        // break;
-        // case 3:
-        // logger.debug("Unsubscribing from topic");
-        // service.removeSubscription(this, "newMotionEvent");
-        // break;
-        // }
-        // break;
-        // }
+
+        switch (channelUID.getIdWithoutGroup()) {
+            case CHANNEL_LAST_MOTION:
+                switch (command.getClass().getSimpleName()) {
+                    case "RefreshType":
+                        break;
+
+                    case "StringType":
+                        String value = command.toFullString();
+                        logger.debug("Value of channel {} got changed to {}", CHANNEL_LAST_MOTION, value);
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
+            case CHANNEL_EVENT_TIME:
+                break;
+
+            default:
+                break;
+        }
 
         // TODO: handle command
 
@@ -100,6 +95,7 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Override
     public void initialize() {
         updateStatus(ThingStatus.UNKNOWN);
+        subscribed = false;
         // logger.debug("Start initializing!");
         config = getConfigAs(DrehbindingConfiguration.class);
 
@@ -148,14 +144,25 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     @Override
     public void onSuccessfulSubscription() {
-        // TODO Auto-generated method stub
-
+        subscribed = true;
+        logger.debug("Subscription was successfull");
     }
 
     @Override
     public void onFailedSubscription() {
-        // TODO Auto-generated method stub
+        subscribed = false;
+        logger.debug("Subscription was not successfull");
+    }
 
+    @Override
+    public void onSuccessfulUnsubscription() {
+        subscribed = false;
+        logger.debug("Unsubscription was successfull");
+    }
+
+    @Override
+    public void onFailedUnsubscription() {
+        logger.debug("Unsubscription was not successfull");
     }
 
     @Override
@@ -166,21 +173,23 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
             case TOPIC_NEW_MOTION:
                 String name = values.get(NAME);
                 updateState(CHANNEL_LAST_MOTION, new StringType(name));
+                updateState(CHANNEL_EVENT_TIME, new DateTimeType());
         }
+
     }
 
     private void logChannelInformation() {
         List<Channel> channels = getThing().getChannels();
-        logger.debug("Anzahl der channels: {}", channels.size());
+        logger.trace("Anzahl der channels: {}", channels.size());
         for (Channel channel : channels) {
-            logger.debug("================== CHANNEL INFORMATION ==================");
-            logger.debug(channel.getAcceptedItemType());
-            logger.debug(channel.getDescription());
-            logger.debug(channel.toString());
-            logger.debug(channel.getChannelTypeUID().getAsString());
-            logger.debug(channel.getConfiguration().toString());
-            logger.debug(channel.getKind().name());
-            logger.debug(channel.getUID().getAsString());
+            logger.trace("================== CHANNEL INFORMATION ==================");
+            logger.trace(channel.getAcceptedItemType());
+            logger.trace(channel.getDescription());
+            logger.trace(channel.toString());
+            logger.trace(channel.getChannelTypeUID().getAsString());
+            logger.trace(channel.getConfiguration().toString());
+            logger.trace(channel.getKind().name());
+            logger.trace(channel.getUID().getAsString());
         }
     }
 

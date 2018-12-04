@@ -1,5 +1,6 @@
 package org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -25,8 +26,14 @@ public class RESTIOServiceImpl implements RESTIOService {
     }
 
     @Override
-    public void callService(String serviceIdentifier, Map<String, String> params) {
-        String urlString = "http://localhost:9090/webapi/test";
+    public RESTResponse callService(String serviceIdentifier) throws IOException {
+        return callService(serviceIdentifier, null);
+    }
+
+    @Override
+    public RESTResponse callService(String serviceIdentifier, Map<String, String> params) throws IOException {
+        // url muss iwie aus den Discovery Configs gewonnen werden
+        String urlString = "http://localhost:9090/webapi/functions/" + serviceIdentifier;
         URL url = null;
         try {
             url = new URL(urlString);
@@ -35,11 +42,12 @@ public class RESTIOServiceImpl implements RESTIOService {
         }
         RESTRequest request = new RESTRequest(GET, url, params);
 
-        restService.makeRestCall(request);
+        return restService.makeRestCall(request);
     }
 
     @Override
     public void addSubscription(RESTIOParticipant participant, String topic) {
+        // url muss iwie aus den Discovery Configs gewonnen werden
         String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
         try {
@@ -54,12 +62,25 @@ public class RESTIOServiceImpl implements RESTIOService {
         params.put("callbackPort", "" + SubscriptionService.getInstance().getCallbackPort());
         RESTRequest request = new RESTRequest(POST, url, params);
 
-        restService.makeRestCall(request);
-        subService.addSubscription(participant, topic);
+        RESTResponse response;
+        try {
+            response = restService.makeRestCall(request);
+        } catch (IOException e) {
+            participant.onFailedSubscription();
+            return;
+        }
+
+        if (response.getResponseCode() == 200 || response.getResponseCode() == 204) {
+            subService.addSubscription(participant, topic);
+            participant.onSuccessfulSubscription();
+        } else {
+            participant.onFailedSubscription();
+        }
     }
 
     @Override
     public void removeSubscription(RESTIOParticipant participant, String topic) {
+        // url muss iwie aus den Discovery Configs gewonnen werden
         String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
         try {
@@ -73,7 +94,20 @@ public class RESTIOServiceImpl implements RESTIOService {
         params.put("topic", topic);
         RESTRequest request = new RESTRequest(DELETE, url, params);
 
-        restService.makeRestCall(request);
+        RESTResponse response;
+        try {
+            response = restService.makeRestCall(request);
+        } catch (IOException e) {
+            participant.onFailedUnsubscription();
+            return;
+        }
+
+        if (response.getResponseCode() == 200 || response.getResponseCode() == 204) {
+            // subService.removeSubscription(participant, topic);
+            participant.onSuccessfulUnsubscription();
+        } else {
+            participant.onFailedUnsubscription();
+        }
     }
 
     @Override
@@ -88,8 +122,11 @@ public class RESTIOServiceImpl implements RESTIOService {
 
     @Override
     public boolean isDeviceOnlineAndReachable() {
-        callService("onlineAndReachable", null);
-        return true;
+        try {
+            return (callService("onlineAndReachable", null).getResponseCode() == 204);
+        } catch (IOException ex) {
+            return false;
+        }
     }
 
 }

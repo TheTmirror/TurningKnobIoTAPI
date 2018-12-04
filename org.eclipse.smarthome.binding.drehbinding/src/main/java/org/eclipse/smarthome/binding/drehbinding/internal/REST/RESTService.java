@@ -1,12 +1,13 @@
 package org.eclipse.smarthome.binding.drehbinding.internal.REST;
 
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTRequest;
+import java.io.IOException;
 
-import com.google.gson.Gson;
+import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTRequest;
+import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTResponse;
 
 public interface RESTService {
 
-    public Gson makeRestCall(RESTRequest request);
+    public RESTResponse makeRestCall(RESTRequest request) throws IOException;
 
     public void GET();
 

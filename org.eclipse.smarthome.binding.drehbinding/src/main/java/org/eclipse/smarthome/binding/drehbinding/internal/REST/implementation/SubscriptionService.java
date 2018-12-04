@@ -28,46 +28,23 @@ public class SubscriptionService {
 
     private final Map<RESTIOParticipant, String> subscriptions;
     private boolean shutdown = false;
-    private boolean running;
     private final Lock lock;
     private int callbackPort = -1;
-
-    Runnable testListener = new Runnable() {
-
-        @Override
-        public void run() {
-            // while (true) {
-            // logger.debug("I'm running!!!!");
-            // logger.debug("Gambling for event!");
-            // Random r = new Random();
-            // if (r.nextInt(10) >= 8) {
-            // logger.debug("Simulated Event");
-            // notifyAllSubscriber("meinTopic");
-            // }
-            //
-            // try {
-            // TimeUnit.SECONDS.sleep(2);
-            // } catch (InterruptedException e) {
-            // // TODO Auto-generated catch block
-            // e.printStackTrace();
-            // }
-            // }
-        }
-    };
 
     Runnable callbackListener = new Runnable() {
 
         @Override
         public void run() {
-            running = true;
+            ServerSocket callbackSocket = null;
+            Socket connection = null;
             try {
-                ServerSocket callbackSocket = new ServerSocket(0);
+                callbackSocket = new ServerSocket(0);
                 lock.lock();
                 callbackPort = callbackSocket.getLocalPort();
                 lock.unlock();
 
                 while (!shutdown) {
-                    Socket connection = callbackSocket.accept();
+                    connection = callbackSocket.accept();
                     BufferedReader inFromClient = new BufferedReader(
                             new InputStreamReader(connection.getInputStream()));
                     String clientSentence = inFromClient.readLine();
@@ -83,6 +60,24 @@ public class SubscriptionService {
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+            } finally {
+                if (connection != null && !connection.isClosed()) {
+                    try {
+                        connection.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+
+                if (callbackSocket != null && !callbackSocket.isClosed()) {
+                    try {
+                        callbackSocket.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     };
@@ -137,10 +132,10 @@ public class SubscriptionService {
     private Map<String, String> decipherValues(String crypticText) {
         Map<String, String> values = new HashMap<>();
         crypticText = crypticText.substring(crypticText.indexOf(";") + 1, crypticText.length());
-        logger.debug("CrypticText without topic:{}", crypticText);
+        logger.trace("CrypticText without topic:{}", crypticText);
 
         while (crypticText.length() > 0) {
-            logger.debug("Index: " + crypticText.indexOf(":"));
+            logger.trace("Index: " + crypticText.indexOf(":"));
             String param = crypticText.substring(0, crypticText.indexOf(":"));
             String value = crypticText.substring(crypticText.indexOf(":") + 1, crypticText.indexOf(";"));
 

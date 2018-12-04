@@ -52,4 +52,9 @@ public class RESTRequest {
         this.params = params;
     }
 
+    @Override
+    public String toString() {
+        return method + " " + url;
+    }
+
 }

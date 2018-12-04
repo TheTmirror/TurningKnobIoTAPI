@@ -16,6 +16,10 @@ public interface RESTIOParticipant {
      */
     public void onFailedSubscription();
 
+    public void onSuccessfulUnsubscription();
+
+    public void onFailedUnsubscription();
+
     /**
      * Called when a event happend which refers to the subscription
      *
