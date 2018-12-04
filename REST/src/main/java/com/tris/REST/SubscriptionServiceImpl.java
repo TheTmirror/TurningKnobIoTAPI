@@ -37,6 +37,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	@Override
 	@POST
 	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic) {
+		System.out.println("NEW CALL!!!!!!!");
 		Subscription sub = new Subscription();
 		sub.setSubscriberIdentifier(identifier);
 		sub.setTopic(topic);
@@ -45,14 +46,15 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 		
 		SubscriptionManager.getInstance().addSubscription(sub);
 
-		return Response.ok().build();
+		return Response.noContent().build();
 	}
 
 	@Override
 	@DELETE
 	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic) {
 		SubscriptionManager.getInstance().removeSubscription(topic, identifier);
-		return Response.ok().build();
+		
+		return Response.noContent().build();
 	}
 
 	@Override
