@@ -6,8 +6,9 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -26,7 +27,9 @@ public class SubscriptionService {
     private static final String POOL_NAME = "DrehbindingSubscriptionPool";
     ExecutorService schedular;
 
-    private final Map<RESTIOParticipant, String> subscriptions;
+    private final Map<String, List<RESTIOParticipant>> subscriptions;
+
+    // private final Map<RESTIOParticipant, String> subscriptions;
     private boolean shutdown = false;
     private final Lock lock;
     private int callbackPort = -1;
@@ -99,7 +102,16 @@ public class SubscriptionService {
     }
 
     public synchronized void addSubscription(RESTIOParticipant participant, String topic) {
-        subscriptions.put(participant, topic);
+        // subscriptions.put(participant, topic);
+
+        if (!subscriptions.containsKey(topic)) {
+            subscriptions.put(topic, new LinkedList<RESTIOParticipant>());
+        }
+
+        List<RESTIOParticipant> subscriber = subscriptions.get(topic);
+        if (!subscriber.contains(participant)) {
+            subscriber.add(participant);
+        }
     }
 
     public synchronized void shutdown() {
@@ -107,13 +119,18 @@ public class SubscriptionService {
     }
 
     private void notifyAllSubscriber(String topic, Map<String, String> values) {
-        for (Entry<RESTIOParticipant, String> entry : subscriptions.entrySet()) {
-            RESTIOParticipant participant = entry.getKey();
-            String subscribedTopic = entry.getValue();
+        // for (Entry<RESTIOParticipant, String> entry : subscriptions.entrySet()) {
+        // RESTIOParticipant participant = entry.getKey();
+        // String subscribedTopic = entry.getValue();
+        //
+        // if (subscribedTopic.equals(topic)) {
+        // participant.onSubcriptionEvent(topic, values);
+        // }
+        // }
 
-            if (subscribedTopic.equals(topic)) {
-                participant.onSubcriptionEvent(topic, values);
-            }
+        List<RESTIOParticipant> subscriber = subscriptions.get(topic);
+        for (RESTIOParticipant participant : subscriber) {
+            participant.onSubcriptionEvent(topic, values);
         }
     }
 

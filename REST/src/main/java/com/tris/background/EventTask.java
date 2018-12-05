@@ -3,6 +3,7 @@ package com.tris.background;
 import static org.tris.internal.Constants.*;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
@@ -11,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
+import org.tris.internal.Event;
 import org.tris.internal.Subscription;
 import org.tris.internal.SubscriptionManager;
 
@@ -64,9 +66,19 @@ public class EventTask implements ServletContextListener {
 				Scanner input = new Scanner(System.in);
 				while (true) {
 					String in = input.nextLine();
+					
+					Map<String, String> values = new HashMap<>();
+					
+					String param;
+					while(!(param = input.nextLine()).equals(";")) {
+						String value = input.nextLine();
+						values.put(param, value);
+					}
 
+					Event event = new Event(in, values);
+					
 					SubscriptionService subService = new SubscriptionServiceImpl();
-					subService.onEvent(in);
+					subService.onEvent(event);
 				}
 			}
 

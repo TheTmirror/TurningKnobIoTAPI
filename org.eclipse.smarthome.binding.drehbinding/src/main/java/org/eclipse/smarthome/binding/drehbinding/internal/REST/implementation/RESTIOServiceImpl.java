@@ -121,7 +121,7 @@ public class RESTIOServiceImpl implements RESTIOService {
     }
 
     @Override
-    public boolean isDeviceOnlineAndReachable() {
+    public synchronized boolean isDeviceOnlineAndReachable() {
         try {
             return (callService("onlineAndReachable", null).getResponseCode() == 204);
         } catch (IOException ex) {

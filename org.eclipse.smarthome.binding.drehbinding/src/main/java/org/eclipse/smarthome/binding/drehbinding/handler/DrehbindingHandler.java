@@ -16,6 +16,7 @@ import static org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingBind
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -51,6 +52,34 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     private boolean subscribed;
 
+    /*
+     * ATTENTION!!!!!
+     * This task is running 24/7 in the background
+     * to keep track if the device is online or not.
+     * This is a backup check to keep the thing
+     * status updated.
+     *
+     * As a quick solution it uses the isDeviceOnlineAndReachable
+     * method of RESTIOService. However the RESTIOService isn't
+     * threadsafe nor does it use the singleton pattern. As a quick
+     * workaorund isDeviceOnlineAndReachable was tagged with synchronized
+     * to avoid race conditions
+     *
+     * TODO: MAKE THESE SERVICE AND COMMUNICATION CLASSES THREAD SAFE!!!!!!!
+     */
+    Runnable onlineCheckTask = new Runnable() {
+
+        @Override
+        public void run() {
+            logger.debug("CHECKING");
+            if (service.isDeviceOnlineAndReachable()) {
+                updateStatus(ThingStatus.ONLINE);
+            } else {
+                updateStatus(ThingStatus.OFFLINE);
+            }
+        }
+    };
+
     public DrehbindingHandler(Thing thing, RESTIOService service) {
         super(thing);
         this.service = service;
@@ -59,23 +88,34 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
 
+        /*
+         * The refresh command is maybe different and may needs to be
+         * processed even if the device is offline.
+         *
+         * TODO: Think about this problem
+         */
+
+        if (getThing().getStatus() == ThingStatus.OFFLINE) {
+            logger.debug("Command was not processed, because the device was offline");
+            return;
+        }
+
+        /*
+         * Is needed for ever channel, even if a device is readonly.
+         * This is due to the fact, than one can send a command via
+         * rules.
+         *
+         * If a command send by a rule should be ignored by a readonly
+         * channel, just leave the case empty or remove it. Then the
+         * channel is readonly even for a rule (Caution: the rule can
+         * still use postUpdate to manipulate values)
+         */
+        logger.debug("REACHED");
         switch (channelUID.getIdWithoutGroup()) {
-            case CHANNEL_LAST_MOTION:
-                switch (command.getClass().getSimpleName()) {
-                    case "RefreshType":
-                        break;
-
-                    case "StringType":
-                        String value = command.toFullString();
-                        logger.debug("Value of channel {} got changed to {}", CHANNEL_LAST_MOTION, value);
-                        break;
-
-                    default:
-                        break;
-                }
+            case CHANNEL_EVENT_TIME:
                 break;
 
-            case CHANNEL_EVENT_TIME:
+            case CHANNEL_LAST_MOTION:
                 break;
 
             default:
@@ -104,11 +144,19 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
             if (service.isDeviceOnlineAndReachable()) {
                 updateStatus(ThingStatus.ONLINE);
                 service.addSubscription(this, TOPIC_NEW_MOTION);
+                service.addSubscription(this, "onoff");
             } else {
                 updateStatus(ThingStatus.OFFLINE);
             }
 
         });
+
+        scheduler.scheduleWithFixedDelay(onlineCheckTask, 0, 5, TimeUnit.SECONDS);
+
+        // scheduler.execute(() -> {
+        // logger.debug("{}", getThing().getChannel(CHANNEL_LAST_MOTION));
+        // TimeUnit()
+        // });
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly. Also, before leaving this method a thing
@@ -174,6 +222,10 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
                 String name = values.get(NAME);
                 updateState(CHANNEL_LAST_MOTION, new StringType(name));
                 updateState(CHANNEL_EVENT_TIME, new DateTimeType());
+                break;
+
+            default:
+                break;
         }
 
     }

@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -22,6 +23,7 @@ import javax.ws.rs.core.UriInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tris.internal.Event;
 import org.tris.internal.Subscription;
 import org.tris.internal.SubscriptionManager;
 
@@ -29,6 +31,7 @@ import org.tris.internal.SubscriptionManager;
 public class SubscriptionServiceImpl implements SubscriptionService {
 
 	private Logger logger = LoggerFactory.getLogger(SubscriptionServiceImpl.class);
+	private static int counter = 1;
 
 	public SubscriptionServiceImpl() {
 		System.out.println("New Instance was created");
@@ -58,8 +61,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	}
 
 	@Override
-	public void onEvent(String topic) {
-		Map<String, Subscription> subsForTopicX = SubscriptionManager.getInstance().getCopyOfSubsForTopic(topic);
+	public void onEvent(Event event) {
+		Map<String, Subscription> subsForTopicX = SubscriptionManager.getInstance().getCopyOfSubsForTopic(event.getTopic());
 		
 		if(subsForTopicX == null) {
 			return;
@@ -67,14 +70,18 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 		
 		for(Entry<String, Subscription> e : subsForTopicX.entrySet()) {
 			Subscription sub = e.getValue();
-			sendEventNotification(sub);
+			sendEventNotification(sub, event);
 		}
 	}
 
-	private void sendEventNotification(Subscription sub) {
+	private void sendEventNotification(Subscription sub, Event event) {
 		System.out.println("I'm notifying someone!");
-		String motionName = "PLACEHOLDER";
-		String sentence = "topic:" + sub.getTopic() + ";name:" + motionName + ";";
+		String sentence = "topic:" + event.getTopic() + ";";
+		
+		for(Entry<String, String> e : event.getValues().entrySet()) {
+			sentence = sentence + e.getKey() + ":" + e.getValue() + ";";
+		}
+		
 		Socket clientSocket;
 		try {
 			clientSocket = new Socket(sub.getCallbackAddress(), sub.getPort());
@@ -85,6 +92,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		counter++;
 	}
 
 }
