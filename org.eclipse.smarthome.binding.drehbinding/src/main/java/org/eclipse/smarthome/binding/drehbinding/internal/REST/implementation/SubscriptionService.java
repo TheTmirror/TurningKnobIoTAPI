@@ -18,6 +18,16 @@ import org.eclipse.smarthome.core.common.ThreadPoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Is ThreadSafe
+ * 
+ * @author Tristan
+ *
+ */
+/*
+ * Vom SubscriptionService sollte es ebenfalls nur eine Instanz geben, da es sich
+ * hierbei um einen Background Task handelt.
+ */
 public class SubscriptionService {
 
     private final Logger logger = LoggerFactory.getLogger(SubscriptionService.class);
@@ -29,10 +39,11 @@ public class SubscriptionService {
 
     private final Map<String, List<RESTIOParticipant>> subscriptions;
 
-    // private final Map<RESTIOParticipant, String> subscriptions;
     private boolean shutdown = false;
-    private final Lock lock;
     private int callbackPort = -1;
+
+    private final Lock shutdownLock;
+    private final Lock callbackPortLock;
 
     Runnable callbackListener = new Runnable() {
 
@@ -42,11 +53,13 @@ public class SubscriptionService {
             Socket connection = null;
             try {
                 callbackSocket = new ServerSocket(0);
-                lock.lock();
+                callbackPortLock.lock();
                 callbackPort = callbackSocket.getLocalPort();
-                lock.unlock();
+                callbackPortLock.unlock();
 
+                shutdownLock.lock();
                 while (!shutdown) {
+                    shutdownLock.unlock();
                     connection = callbackSocket.accept();
                     BufferedReader inFromClient = new BufferedReader(
                             new InputStreamReader(connection.getInputStream()));
@@ -59,7 +72,9 @@ public class SubscriptionService {
                     notifyAllSubscriber(topic, values);
 
                     // GGf delay timer = overflood protection
+                    shutdownLock.lock();
                 }
+                shutdownLock.unlock();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -86,8 +101,11 @@ public class SubscriptionService {
     };
 
     private SubscriptionService() {
-        lock = new ReentrantLock();
+        callbackPortLock = new ReentrantLock();
+        shutdownLock = new ReentrantLock();
+
         schedular = ThreadPoolManager.getPool(POOL_NAME);
+
         subscriptions = new HashMap<>();
 
         schedular.execute(callbackListener);
@@ -101,44 +119,49 @@ public class SubscriptionService {
         return SubscriptionService.instance;
     }
 
-    public synchronized void addSubscription(RESTIOParticipant participant, String topic) {
-        // subscriptions.put(participant, topic);
+    public void addSubscription(RESTIOParticipant participant, String topic) {
+        List<RESTIOParticipant> subscriber;
 
-        if (!subscriptions.containsKey(topic)) {
-            subscriptions.put(topic, new LinkedList<RESTIOParticipant>());
+        synchronized (subscriptions) {
+            if (!subscriptions.containsKey(topic)) {
+                subscriptions.put(topic, new LinkedList<RESTIOParticipant>());
+            }
+
+            subscriber = subscriptions.get(topic);
         }
 
-        List<RESTIOParticipant> subscriber = subscriptions.get(topic);
-        if (!subscriber.contains(participant)) {
-            subscriber.add(participant);
+        synchronized (subscriber) {
+            if (!subscriber.contains(participant)) {
+                subscriber.add(participant);
+            }
         }
     }
 
-    public synchronized void shutdown() {
+    public void shutdown() {
+        shutdownLock.lock();
         this.shutdown = true;
+        shutdownLock.unlock();
     }
 
     private void notifyAllSubscriber(String topic, Map<String, String> values) {
-        // for (Entry<RESTIOParticipant, String> entry : subscriptions.entrySet()) {
-        // RESTIOParticipant participant = entry.getKey();
-        // String subscribedTopic = entry.getValue();
-        //
-        // if (subscribedTopic.equals(topic)) {
-        // participant.onSubcriptionEvent(topic, values);
-        // }
-        // }
+        List<RESTIOParticipant> subscriber;
 
-        List<RESTIOParticipant> subscriber = subscriptions.get(topic);
-        for (RESTIOParticipant participant : subscriber) {
-            participant.onSubcriptionEvent(topic, values);
+        synchronized (subscriptions) {
+            subscriber = subscriptions.get(topic);
+        }
+
+        synchronized (subscriber) {
+            for (RESTIOParticipant participant : subscriber) {
+                participant.onSubcriptionEvent(topic, values);
+            }
         }
     }
 
     public int getCallbackPort() {
         int callbackPort = -1;
-        lock.lock();
+        callbackPortLock.lock();
         callbackPort = this.callbackPort;
-        lock.unlock();
+        callbackPortLock.unlock();
         return callbackPort;
     }
 

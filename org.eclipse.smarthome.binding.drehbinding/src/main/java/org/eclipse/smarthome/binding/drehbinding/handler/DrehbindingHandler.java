@@ -23,6 +23,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingConfiguration;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
+import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTIOServiceImpl;
 import org.eclipse.smarthome.core.library.types.DateTimeType;
 import org.eclipse.smarthome.core.library.types.StringType;
 import org.eclipse.smarthome.core.thing.Channel;
@@ -48,9 +49,7 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Nullable
     private DrehbindingConfiguration config;
 
-    private final RESTIOService service;
-
-    private boolean subscribed;
+    private final RESTIOService service = RESTIOServiceImpl.getInstance();
 
     /*
      * ATTENTION!!!!!
@@ -58,14 +57,6 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
      * to keep track if the device is online or not.
      * This is a backup check to keep the thing
      * status updated.
-     *
-     * As a quick solution it uses the isDeviceOnlineAndReachable
-     * method of RESTIOService. However the RESTIOService isn't
-     * threadsafe nor does it use the singleton pattern. As a quick
-     * workaorund isDeviceOnlineAndReachable was tagged with synchronized
-     * to avoid race conditions
-     *
-     * TODO: MAKE THESE SERVICE AND COMMUNICATION CLASSES THREAD SAFE!!!!!!!
      */
     Runnable onlineCheckTask = new Runnable() {
 
@@ -80,9 +71,8 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         }
     };
 
-    public DrehbindingHandler(Thing thing, RESTIOService service) {
+    public DrehbindingHandler(Thing thing) {
         super(thing);
-        this.service = service;
     }
 
     @Override
@@ -135,8 +125,6 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Override
     public void initialize() {
         updateStatus(ThingStatus.UNKNOWN);
-        subscribed = false;
-        // logger.debug("Start initializing!");
         config = getConfigAs(DrehbindingConfiguration.class);
 
         scheduler.execute(() -> {
@@ -191,20 +179,35 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     }
 
     @Override
+    public void dispose() {
+        // TODO Auto-generated method stub
+        super.dispose();
+    }
+
+    @Override
+    public void thingUpdated(Thing thing) {
+        // TODO Auto-generated method stub
+        super.thingUpdated(thing);
+    }
+
+    @Override
+    public void handleConfigurationUpdate(Map<String, Object> configurationParameters) {
+        // TODO Auto-generated method stub
+        super.handleConfigurationUpdate(configurationParameters);
+    }
+
+    @Override
     public void onSuccessfulSubscription() {
-        subscribed = true;
         logger.debug("Subscription was successfull");
     }
 
     @Override
     public void onFailedSubscription() {
-        subscribed = false;
         logger.debug("Subscription was not successfull");
     }
 
     @Override
     public void onSuccessfulUnsubscription() {
-        subscribed = false;
         logger.debug("Unsubscription was successfull");
     }
 

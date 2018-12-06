@@ -10,19 +10,37 @@ import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTService;
 
+/**
+ * Is ThreadSafe
+ *
+ * @author Tristan
+ *
+ */
+/*
+ * Singleton pattern ist sinnvoll, da Service
+ */
 public class RESTIOServiceImpl implements RESTIOService {
 
-    RESTService restService;
-    SubscriptionService subService;
+    RESTService restService = RESTServiceImpl.getInstance();
+    SubscriptionService subService = SubscriptionService.getInstance();
+
+    private static RESTIOServiceImpl instance;
 
     private static final String GET = "GET";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
     private static final String DELETE = "DELETE";
 
-    public RESTIOServiceImpl(RESTService restService) {
-        this.restService = restService;
-        subService = SubscriptionService.getInstance();
+    private RESTIOServiceImpl() {
+
+    }
+
+    public synchronized static RESTIOServiceImpl getInstance() {
+        if (instance == null) {
+            instance = new RESTIOServiceImpl();
+        }
+
+        return instance;
     }
 
     @Override
@@ -121,7 +139,7 @@ public class RESTIOServiceImpl implements RESTIOService {
     }
 
     @Override
-    public synchronized boolean isDeviceOnlineAndReachable() {
+    public boolean isDeviceOnlineAndReachable() {
         try {
             return (callService("onlineAndReachable", null).getResponseCode() == 204);
         } catch (IOException ex) {

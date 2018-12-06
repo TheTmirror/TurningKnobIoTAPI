@@ -14,9 +14,36 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 
+/**
+ * Is ThreadSafe
+ *
+ * @author Tristan
+ *
+ */
+/*
+ * Wird als Singleton eingerichtet. Der Service is threadsafe
+ * und daher sollte immer auch die selbe Instanz verwendet werden,
+ * da es ja auch immer der selbe Service ist.
+ *
+ * TODO: Quatsche dies mit Peter durch (ist mehr ein Pattern)
+ */
 public class RESTServiceImpl implements RESTService {
 
     private final Logger logger = LoggerFactory.getLogger(RESTServiceImpl.class);
+
+    private static RESTServiceImpl instance;
+
+    private RESTServiceImpl() {
+
+    }
+
+    public static RESTServiceImpl getInstance() {
+        if (instance == null) {
+            instance = new RESTServiceImpl();
+        }
+
+        return instance;
+    }
 
     /**
      *
