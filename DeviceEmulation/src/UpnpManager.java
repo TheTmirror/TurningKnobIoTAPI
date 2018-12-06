@@ -8,22 +8,8 @@ public class UpnpManager extends Thread{
 	
 	@Override
 	public void run() {
-		try {
-			SearchListener search = new SearchListener();
-			search.start();
-			
-//			Reader reader = new Reader();
-//			reader.start();
-			
-			AktiveManager aktive = new AktiveManager();
-//			aktive.start();
-			
-			
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		Reader reader = new Reader();
+		reader.start();
 	}
 	
 }

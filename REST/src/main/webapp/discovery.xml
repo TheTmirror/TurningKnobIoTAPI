@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<root xmlns="urn:schemas-upnp-org:device-1-0" configID="3">
+<root xmlns="urn:schemas-upnp-org:device-1-0" configID="1">
 	<specVersion>
 		<major>1</major>
-		<minor>0</minor>
+		<minor>1</minor>
 	</specVersion>
 	<!-- Optional URLBase -->
 	<URLBase>http://localhost:9090/</URLBase>
@@ -18,6 +18,8 @@
 		<UDN>uuid:meinErsterDrehknopf-v0.02</UDN>
 		<!-- Optional <UPC>DOES NOT EXIST</UPC> -->
 		<!-- Optional <iconList> </iconList> -->
+		<!-- Services sind vorerst deaktiviert, da keine WSDL Services
+		mehr vorhanden sind!
 		<serviceList>
 			<service>
 				<serviceType>urn:tristan:service:testService:1</serviceType>
@@ -27,23 +29,8 @@
 				<eventSubURL>/webapi/testService/event</eventSubURL>
 			</service>
 		</serviceList>
+		-->
 		<!-- Optional <deviceList> </deviceList> -->
 		<!-- RECOMMENDED <presentationURL></presentationURL> -->
 	</device>
 </root>
-
-<!-- <?xml version="1.0" encoding="UTF-8" ?> <root xmlns="urn:schemas-upnp-org:device-1-0"> 
-	<specVersion> <major>1</major> <minor>0</minor> </specVersion> <URLBase>http://someTestingURL/</URLBase> 
-	<device> <deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType> <friendlyName>openHAB 
-	Hue EmulationBUTMINE!</friendlyName> <manufacturer>Royal TEST !!! Philips 
-	Electronics</manufacturer> <manufacturerURL>http://www.philips.com</manufacturerURL> 
-	<modelDescription>Philips hue Personal Wireless Lighting</modelDescription> 
-	<modelName>Philips hue ASDASDASDS bridge 2015</modelName> <modelNumber>9290002265032307</modelNumber> 
-	<modelURL>http://www.meethue.com</modelURL> <serialNumber>0017880ae670</serialNumber> 
-	<UDN>uuid:MYPERSONALUUID</UDN> <serviceList> <service> <serviceType>(null)</serviceType> 
-	<serviceId>(null)</serviceId> <controlURL>(null)</controlURL> <eventSubURL>(null)</eventSubURL> 
-	<SCPDURL>(null)</SCPDURL> </service> </serviceList> <presentationURL>index.html</presentationURL> 
-	<iconList> <icon> <mimetype>image/png</mimetype> <height>48</height> <width>48</width> 
-	<depth>24</depth> <url>hue_logo_0.png</url> </icon> <icon> <mimetype>image/png</mimetype> 
-	<height>120</height> <width>120</width> <depth>24</depth> <url>hue_logo_3.png</url> 
-	</icon> </iconList> </device> </root> -->
