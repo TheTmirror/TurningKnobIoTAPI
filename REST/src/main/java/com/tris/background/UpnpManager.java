@@ -24,13 +24,15 @@ public class UpnpManager extends Thread implements ServletContextListener {
 			Announcer announcer = new Announcer();
 			announcer.start();
 			
-			Scanner in = new Scanner(System.in);
-			if(in.nextLine().equals("shutdown")) {
-				announcer.shutdown();
-			}
+			TimeUnit.SECONDS.sleep(120);
+			System.out.println("Kicking off shutdown");
+			announcer.shutdown();
 			
 
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

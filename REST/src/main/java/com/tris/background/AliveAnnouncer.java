@@ -13,7 +13,7 @@ public class AliveAnnouncer {
 
 	private static final String NEW_LINE = "\r\n";
 	public static final String BASE = "NOTIFY * HTTP/1.1" + NEW_LINE + "HOST: %s:%d" + NEW_LINE
-			+ "CACHE_CONTROL: max-age = %d" + NEW_LINE + "LOCATION: %s" + NEW_LINE + "NT: %s" + NEW_LINE + "NTS: %s"
+			+ "CACHE-CONTROL: max-age = %d" + NEW_LINE + "LOCATION: %s" + NEW_LINE + "NT: %s" + NEW_LINE + "NTS: %s"
 			+ NEW_LINE + "SERVER: %s" + NEW_LINE + "USN: %s" + NEW_LINE + "BOOTID.UPNP.ORG: %d" + NEW_LINE
 			+ "CONFIGID.UPNP.ORG: %d" + NEW_LINE + NEW_LINE;
 

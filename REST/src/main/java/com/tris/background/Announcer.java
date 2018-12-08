@@ -9,7 +9,8 @@ public class Announcer extends Thread {
 
 	private AliveAnnouncer alive;
 	private ByeByeAnnouncer bye;
-	private boolean shutdown = false;
+	private Thread timer;
+	private Runnable sendRun;
 
 	public Announcer() {
 		Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC+1"));
@@ -17,40 +18,71 @@ public class Announcer extends Thread {
 
 		alive = new AliveAnnouncer(bootid);
 		bye = new ByeByeAnnouncer(bootid);
-	}
+		
+		sendRun = new Runnable() {
+			
+			@Override
+			public void run() {
+				onEvent("alive");
+			}
+		};
+		
+		timer = new Thread(new Runnable() {
 
+			@Override
+			public void run() {
+				Random r = new Random();
+				while (true) {
+					try {
+						int timeout = r.nextInt(AliveAnnouncer.EXPIRATION_TIME / 2);
+						System.out.println("Next alive msg in: " + timeout + " seconds");
+						TimeUnit.SECONDS.sleep(timeout);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					new Thread(sendRun).start();
+				}
+			}
+		});
+
+	}
+	
 	@Override
 	public void run() {
-		Random r = new Random();
+		new Thread(sendRun).start();
+		timer.start();
+	}
 
-		try {
-			alive.sendAliveMessageBundle();
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		while (!shutdown) {
+	private void onEvent(String type) {
+		switch (type) {
+		case "alive":
 			try {
-				int timeout = r.nextInt(AliveAnnouncer.EXPIRATION_TIME / 2);
-				System.out.println("Next alive msg in: " + timeout + " seconds");
-				TimeUnit.SECONDS.sleep(timeout);
 				alive.sendAliveMessageBundle();
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		}
+			break;
 
-		try {
-			bye.sendByeByeMessageBundle();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		case "shutdown":
+			timer.stop();
+			try {
+				bye.sendByeByeMessageBundle();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			break;
+
+		default:
+			break;
 		}
 	}
 
 	public void shutdown() {
-		this.shutdown = true;
+		onEvent("shutdown");
 	}
 
 }

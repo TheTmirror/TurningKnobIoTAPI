@@ -85,7 +85,7 @@ public class EventTask implements ServletContextListener {
 		};
 
 		new Thread(smLogger).start();
-		new Thread(task).start();
+//		new Thread(task).start();
 	}
 
 	@Override
