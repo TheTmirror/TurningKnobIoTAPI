@@ -21,7 +21,9 @@ import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandlerFactory;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.eclipse.smarthome.core.thing.binding.ThingHandlerFactory;
+import org.jupnp.UpnpService;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,8 @@ public class DrehbindingHandlerFactory extends BaseThingHandlerFactory {
 
     private final Logger logger = LoggerFactory.getLogger(DrehbindingHandlerFactory.class);
 
+    private UpnpService upnpService;
+
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
         return SUPPORTED_THING_TYPES.contains(thingTypeUID);
@@ -47,18 +51,18 @@ public class DrehbindingHandlerFactory extends BaseThingHandlerFactory {
 
         if (THING_TYPE_DREHKNOPF.equals(thingTypeUID)) {
             SubscriptionService.getInstance();
-            return new DrehbindingHandler(thing);
+            return new DrehbindingHandler(thing, upnpService);
         }
 
         return null;
     }
 
-    // @Reference
-    // protected void setUpnpService(UpnpService upnpService) {
-    // this.upnpService = upnpService;
-    // }
-    //
-    // protected void unsetUpnpService(UpnpService upnpService) {
-    // this.upnpService = null;
-    // }
+    @Reference
+    protected void setUpnpIOService(UpnpService upnpService) {
+        this.upnpService = upnpService;
+    }
+
+    protected void unsetUpnpIOService(UpnpService ioSupnpServiceervice) {
+        this.upnpService = upnpService;
+    }
 }

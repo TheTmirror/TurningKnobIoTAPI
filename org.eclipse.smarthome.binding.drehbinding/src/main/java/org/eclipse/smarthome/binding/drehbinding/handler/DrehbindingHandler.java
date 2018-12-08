@@ -16,7 +16,6 @@ import static org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingBind
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -32,6 +31,11 @@ import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
+import org.jupnp.UpnpService;
+import org.jupnp.model.meta.LocalDevice;
+import org.jupnp.model.meta.RemoteDevice;
+import org.jupnp.registry.Registry;
+import org.jupnp.registry.RegistryListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +54,8 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     private DrehbindingConfiguration config;
 
     private final RESTIOService service = RESTIOServiceImpl.getInstance();
+
+    private final UpnpService upnpService;
 
     /*
      * ATTENTION!!!!!
@@ -71,8 +77,9 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         }
     };
 
-    public DrehbindingHandler(Thing thing) {
+    public DrehbindingHandler(Thing thing, UpnpService upnpService) {
         super(thing);
+        this.upnpService = upnpService;
     }
 
     @Override
@@ -100,7 +107,6 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
          * channel is readonly even for a rule (Caution: the rule can
          * still use postUpdate to manipulate values)
          */
-        logger.debug("REACHED");
         switch (channelUID.getIdWithoutGroup()) {
             case CHANNEL_EVENT_TIME:
                 break;
@@ -125,26 +131,7 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Override
     public void initialize() {
         updateStatus(ThingStatus.UNKNOWN);
-        config = getConfigAs(DrehbindingConfiguration.class);
-
-        scheduler.execute(() -> {
-
-            if (service.isDeviceOnlineAndReachable()) {
-                updateStatus(ThingStatus.ONLINE);
-                service.addSubscription(this, TOPIC_NEW_MOTION);
-                service.addSubscription(this, "onoff");
-            } else {
-                updateStatus(ThingStatus.OFFLINE);
-            }
-
-        });
-
-        scheduler.scheduleWithFixedDelay(onlineCheckTask, 0, 5, TimeUnit.SECONDS);
-
-        // scheduler.execute(() -> {
-        // logger.debug("{}", getThing().getChannel(CHANNEL_LAST_MOTION));
-        // TimeUnit()
-        // });
+        upnpService.getRegistry().addListener(new RegistryListenerImpl());
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly. Also, before leaving this method a thing
@@ -158,14 +145,6 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         // the framework is then able to reuse the resources from the thing handler initialization.
         // we set this upfront to reliably check status updates in unit tests.
 
-        // Example for background initialization:
-        // scheduler.execute(() -> {
-        // // Sende Anfrage an das Device
-        // // Zu Testen: Ist es online, sind die Services erreichbar?
-        // if (!isDeviceOnline() && !areDeviceServicesOnline()) {
-        // updateStatus(ThingStatus.ONLINE);
-        // } else {
-        // updateStatus(ThingStatus.OFFLINE);
         // // Note: When initialization can NOT be done set the status with more details for further
         // // analysis. See also class ThingStatusDetail for all available status details.
         // // Add a description to give user information to understand why thing does not work as expected.
@@ -174,8 +153,6 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         // // "Can not access device as username and/or password are invalid");
         // }
         // });
-
-        // logger.debug("Finished initializing!");
     }
 
     @Override
@@ -251,5 +228,82 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
     @Override
     public String getIdentifier() {
         return getThing().getProperties().get(UDN);
+    }
+
+    private void synchronizeSubscriptionsWithDevice() {
+        service.addSubscription(this, TOPIC_NEW_MOTION);
+    }
+
+    private class RegistryListenerImpl implements RegistryListener {
+
+        @Override
+        public void remoteDeviceDiscoveryStarted(@Nullable Registry registry, @Nullable RemoteDevice device) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void remoteDeviceDiscoveryFailed(@Nullable Registry registry, @Nullable RemoteDevice device,
+                @Nullable Exception ex) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void remoteDeviceAdded(@Nullable Registry registry, @Nullable RemoteDevice device) {
+            String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
+            String thingUDN = getThing().getProperties().get(UDN);
+            logger.debug(deviceUDN);
+            logger.debug(thingUDN);
+
+            if (deviceUDN.equals(thingUDN)) {
+                logger.debug("Set thing status: online!");
+                updateStatus(ThingStatus.ONLINE);
+                synchronizeSubscriptionsWithDevice();
+            }
+        }
+
+        @Override
+        public void remoteDeviceUpdated(@Nullable Registry registry, @Nullable RemoteDevice device) {
+            // TODO Auto-generated method stub
+        }
+
+        @Override
+        public void remoteDeviceRemoved(@Nullable Registry registry, @Nullable RemoteDevice device) {
+            String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
+            String thingUDN = getThing().getProperties().get(UDN);
+            logger.debug(deviceUDN);
+            logger.debug(thingUDN);
+
+            if (deviceUDN.equals(thingUDN)) {
+                logger.debug("Set thing status: offline!");
+                updateStatus(ThingStatus.OFFLINE);
+            }
+        }
+
+        @Override
+        public void localDeviceAdded(@Nullable Registry registry, @Nullable LocalDevice device) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void localDeviceRemoved(@Nullable Registry registry, @Nullable LocalDevice device) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void beforeShutdown(@Nullable Registry registry) {
+            // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void afterShutdown() {
+            // TODO Auto-generated method stub
+
+        }
+
     }
 }
