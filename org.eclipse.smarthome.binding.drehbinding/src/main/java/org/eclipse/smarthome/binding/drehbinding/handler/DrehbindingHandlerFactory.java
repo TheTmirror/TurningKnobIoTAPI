@@ -15,7 +15,6 @@ package org.eclipse.smarthome.binding.drehbinding.handler;
 import static org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingBindingConstants.*;
 
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.SubscriptionService;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandlerFactory;
@@ -50,7 +49,6 @@ public class DrehbindingHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_DREHKNOPF.equals(thingTypeUID)) {
-            SubscriptionService.getInstance();
             return new DrehbindingHandler(thing, upnpService);
         }
 

@@ -1,4 +1,4 @@
-package org.eclipse.smarthome.binding.drehbinding.internal.REST;
+package org.eclipse.smarthome.binding.drehbinding.deprecated;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -6,29 +6,58 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.Map.Entry;
 
+import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTService;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTRequest;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTResponse;
 import org.eclipse.smarthome.binding.drehbinding.internal.exception.UnexpectedResponseCodeException;
 import org.eclipse.smarthome.binding.drehbinding.internal.exception.WrongRespondCodeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 
-public interface RESTService {
+/**
+ * Is ThreadSafe
+ *
+ * @author Tristan
+ *
+ */
+/*
+ * Wird als Singleton eingerichtet. Der Service is threadsafe
+ * und daher sollte immer auch die selbe Instanz verwendet werden,
+ * da es ja auch immer der selbe Service ist.
+ *
+ * TODO: Quatsche dies mit Peter durch (ist mehr ein Pattern)
+ */
+public class RESTServiceImpl implements RESTService {
 
-    public static RESTResponse makeRestCall(RESTRequest request) throws IOException {
+    private final Logger logger = LoggerFactory.getLogger(RESTServiceImpl.class);
 
-        // Build connection
-        HttpURLConnection connection = (HttpURLConnection) request.getUrl().openConnection();
-        connection.setRequestMethod(request.getMethod());
-        connection.setConnectTimeout(5000);
+    private static RESTServiceImpl instance;
 
-        if (request.getParams() != null) {
-            for (Entry<String, String> param : request.getParams().entrySet()) {
-                connection.setRequestProperty(param.getKey(), param.getValue());
-            }
+    private RESTServiceImpl() {
+
+    }
+
+    public static RESTServiceImpl getInstance() {
+        if (instance == null) {
+            instance = new RESTServiceImpl();
         }
 
-        // Work with connection
+        return instance;
+    }
+
+    /**
+     *
+     * @param request
+     * @return RESTResponse which contains the response code of the REST call and all obtained
+     *         custom return values.
+     * @throws IOException
+     */
+    public RESTResponse makeRestCall(RESTRequest request) throws IOException {
+
+        HttpURLConnection connection = buildConnection(request);
+
         RESTResponse response = null;
         switch (connection.getResponseCode()) {
             case 200:
@@ -63,18 +92,41 @@ public interface RESTService {
             default:
                 throw new UnexpectedResponseCodeException();
         }
+
     }
 
-    public static void GET() {
+    private HttpURLConnection buildConnection(RESTRequest request) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) request.getUrl().openConnection();
+        connection.setRequestMethod(request.getMethod());
+        connection.setConnectTimeout(5000);
+
+        if (request.getParams() != null) {
+            for (Entry<String, String> param : request.getParams().entrySet()) {
+                connection.setRequestProperty(param.getKey(), param.getValue());
+            }
+        }
+
+        return connection;
     }
 
-    public static void PUT() {
+    public void GET() {
+        // TODO Auto-generated method stub
+
     }
 
-    public static void POST() {
+    public void PUT() {
+        // TODO Auto-generated method stub
+
     }
 
-    public static void DELETE() {
+    public void POST() {
+        // TODO Auto-generated method stub
+
+    }
+
+    public void DELETE() {
+        // TODO Auto-generated method stub
+
     }
 
 }

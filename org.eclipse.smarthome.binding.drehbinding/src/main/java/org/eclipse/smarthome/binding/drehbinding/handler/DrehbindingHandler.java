@@ -14,13 +14,17 @@ package org.eclipse.smarthome.binding.drehbinding.handler;
 
 import static org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingBindingConstants.*;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.smarthome.binding.drehbinding.eventing.Subscriber;
+import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionService;
+import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionServiceImpl;
 import org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingConfiguration;
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTIOServiceImpl;
 import org.eclipse.smarthome.core.library.types.DateTimeType;
@@ -46,40 +50,30 @@ import org.slf4j.LoggerFactory;
  * @author Tristan - Initial contribution
  */
 @NonNullByDefault
-public class DrehbindingHandler extends BaseThingHandler implements RESTIOParticipant {
+public class DrehbindingHandler extends BaseThingHandler implements Subscriber, RegistryListener {
 
     private final Logger logger = LoggerFactory.getLogger(DrehbindingHandler.class);
 
     @Nullable
     private DrehbindingConfiguration config;
 
-    private final RESTIOService service = RESTIOServiceImpl.getInstance();
+    private final RESTIOService restIOService = RESTIOServiceImpl.getInstance();
 
-    private final UpnpService upnpService;
+    private final SubscriptionService subscriptionService = SubscriptionServiceImpl.getInstance();
 
     /*
-     * ATTENTION!!!!!
-     * This task is running 24/7 in the background
-     * to keep track if the device is online or not.
-     * This is a backup check to keep the thing
-     * status updated.
+     * Missing BOOTID workaround -> informations will follow
      */
-    Runnable onlineCheckTask = new Runnable() {
+    private final long bootid;
 
-        @Override
-        public void run() {
-            logger.debug("CHECKING");
-            if (service.isDeviceOnlineAndReachable()) {
-                updateStatus(ThingStatus.ONLINE);
-            } else {
-                updateStatus(ThingStatus.OFFLINE);
-            }
-        }
-    };
+    private final UpnpService upnpService;
 
     public DrehbindingHandler(Thing thing, UpnpService upnpService) {
         super(thing);
         this.upnpService = upnpService;
+
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC+1"));
+        bootid = calendar.getTimeInMillis() / 1000L;
     }
 
     @Override
@@ -128,10 +122,19 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     }
 
+    /*
+     * ###############################################################################################
+     * #
+     * #
+     * # THING STUFF
+     * #
+     * #
+     * ###############################################################################################
+     */
     @Override
     public void initialize() {
         updateStatus(ThingStatus.UNKNOWN);
-        upnpService.getRegistry().addListener(new RegistryListenerImpl());
+        upnpService.getRegistry().addListener(this);
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly. Also, before leaving this method a thing
@@ -157,8 +160,10 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
 
     @Override
     public void dispose() {
-        // TODO Auto-generated method stub
+        // Wird dies gebraucht?
         super.dispose();
+
+        unsubscribe();
     }
 
     @Override
@@ -173,26 +178,64 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         super.handleConfigurationUpdate(configurationParameters);
     }
 
-    @Override
-    public void onSuccessfulSubscription() {
-        logger.debug("Subscription was successfull");
+    /*
+     * ###############################################################################################
+     * #
+     * #
+     * # SUBSCRIPTION STUFF
+     * #
+     * #
+     * ###############################################################################################
+     */
+    private void subscribe() {
+        // Abgedeckt: 1, 2
+        subscriptionService.subscribe(this, TOPIC_NEW_MOTION, bootid);
+    }
+
+    private void unsubscribe() {
+        // Abgedeckt: 3
+        subscriptionService.unsubscribe(this, TOPIC_NEW_MOTION, bootid);
     }
 
     @Override
-    public void onFailedSubscription() {
-        logger.debug("Subscription was not successfull");
+    public String getIdentifier() {
+        return getThing().getProperties().get(UDN);
     }
 
     @Override
-    public void onSuccessfulUnsubscription() {
-        logger.debug("Unsubscription was successfull");
+    public void onFullSuccessfulSubscription(String topic) {
+        logger.debug("Subscribed successful for {}", topic);
     }
 
     @Override
-    public void onFailedUnsubscription() {
-        logger.debug("Unsubscription was not successfull");
+    public void onPartialSucessfulSubscription(String topic) {
+        logger.debug("Subscribed partialy successful for {}", topic);
     }
 
+    @Override
+    public void onFullSuccessfullUnsubscription(String topic) {
+        logger.debug("Unsubscribed successful for {}", topic);
+    }
+
+    @Override
+    public void onPartialSucessfulUnsubscription(String topic) {
+        logger.debug("Snsubscribed partialy successful for {}", topic);
+    }
+
+    /*
+     * ###############################################################################################
+     * #
+     * #
+     * # UPNP REGISTRY LISTENER STUFF
+     * #
+     * #
+     * ###############################################################################################
+     *
+     * (non-Javadoc)
+     *
+     * @see org.eclipse.smarthome.binding.drehbinding.eventing.Subscriber#onSubcriptionEvent(java.lang.String,
+     * java.util.Map)
+     */
     @Override
     public void onSubcriptionEvent(String topic, Map<String, String> values) {
         logger.trace("An Event happend for me!");
@@ -207,9 +250,89 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
             default:
                 break;
         }
+    }
+
+    @Override
+    public void remoteDeviceDiscoveryStarted(@Nullable Registry registry, @Nullable RemoteDevice device) {
+        // TODO Auto-generated method stub
 
     }
 
+    @Override
+    public void remoteDeviceDiscoveryFailed(@Nullable Registry registry, @Nullable RemoteDevice device,
+            @Nullable Exception ex) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void remoteDeviceAdded(@Nullable Registry registry, @Nullable RemoteDevice device) {
+        logger.debug("Something was added!");
+        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
+        String thingUDN = getThing().getProperties().get(UDN);
+        logger.debug(deviceUDN);
+        logger.debug(thingUDN);
+
+        if (deviceUDN.equals(thingUDN)) {
+            logger.debug("Set thing status: online!");
+            updateStatus(ThingStatus.ONLINE);
+            subscribe();
+        }
+    }
+
+    @Override
+    public void remoteDeviceUpdated(@Nullable Registry registry, @Nullable RemoteDevice device) {
+        logger.trace("Update for device: {}", device.getDetails().getFriendlyName());
+    }
+
+    @Override
+    public void remoteDeviceRemoved(@Nullable Registry registry, @Nullable RemoteDevice device) {
+        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
+        String thingUDN = getThing().getProperties().get(UDN);
+        logger.debug(deviceUDN);
+        logger.debug(thingUDN);
+
+        if (deviceUDN.equals(thingUDN)) {
+            logger.debug("Set thing status: offline!");
+            updateStatus(ThingStatus.OFFLINE);
+            // Problem: Expiring und ByeBye können nicht unterschieden werden.
+            unsubscribe();
+        }
+    }
+
+    @Override
+    public void localDeviceAdded(@Nullable Registry registry, @Nullable LocalDevice device) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void localDeviceRemoved(@Nullable Registry registry, @Nullable LocalDevice device) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void beforeShutdown(@Nullable Registry registry) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void afterShutdown() {
+        // TODO Auto-generated method stub
+
+    }
+
+    /*
+     * ###############################################################################################
+     * #
+     * #
+     * # OTHER STUFF
+     * #
+     * #
+     * ###############################################################################################
+     */
     private void logChannelInformation() {
         List<Channel> channels = getThing().getChannels();
         logger.trace("Anzahl der channels: {}", channels.size());
@@ -225,85 +348,4 @@ public class DrehbindingHandler extends BaseThingHandler implements RESTIOPartic
         }
     }
 
-    @Override
-    public String getIdentifier() {
-        return getThing().getProperties().get(UDN);
-    }
-
-    private void synchronizeSubscriptionsWithDevice() {
-        service.addSubscription(this, TOPIC_NEW_MOTION);
-    }
-
-    private class RegistryListenerImpl implements RegistryListener {
-
-        @Override
-        public void remoteDeviceDiscoveryStarted(@Nullable Registry registry, @Nullable RemoteDevice device) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void remoteDeviceDiscoveryFailed(@Nullable Registry registry, @Nullable RemoteDevice device,
-                @Nullable Exception ex) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void remoteDeviceAdded(@Nullable Registry registry, @Nullable RemoteDevice device) {
-            String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
-            String thingUDN = getThing().getProperties().get(UDN);
-            logger.debug(deviceUDN);
-            logger.debug(thingUDN);
-
-            if (deviceUDN.equals(thingUDN)) {
-                logger.debug("Set thing status: online!");
-                updateStatus(ThingStatus.ONLINE);
-                synchronizeSubscriptionsWithDevice();
-            }
-        }
-
-        @Override
-        public void remoteDeviceUpdated(@Nullable Registry registry, @Nullable RemoteDevice device) {
-            // TODO Auto-generated method stub
-        }
-
-        @Override
-        public void remoteDeviceRemoved(@Nullable Registry registry, @Nullable RemoteDevice device) {
-            String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
-            String thingUDN = getThing().getProperties().get(UDN);
-            logger.debug(deviceUDN);
-            logger.debug(thingUDN);
-
-            if (deviceUDN.equals(thingUDN)) {
-                logger.debug("Set thing status: offline!");
-                updateStatus(ThingStatus.OFFLINE);
-            }
-        }
-
-        @Override
-        public void localDeviceAdded(@Nullable Registry registry, @Nullable LocalDevice device) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void localDeviceRemoved(@Nullable Registry registry, @Nullable LocalDevice device) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void beforeShutdown(@Nullable Registry registry) {
-            // TODO Auto-generated method stub
-
-        }
-
-        @Override
-        public void afterShutdown() {
-            // TODO Auto-generated method stub
-
-        }
-
-    }
 }

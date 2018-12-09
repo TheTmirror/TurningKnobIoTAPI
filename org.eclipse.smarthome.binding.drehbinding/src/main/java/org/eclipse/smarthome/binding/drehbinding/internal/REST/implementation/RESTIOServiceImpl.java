@@ -6,7 +6,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOParticipant;
+import org.eclipse.smarthome.binding.drehbinding.eventing.Subscriber;
+import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionServiceImpl;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTService;
 
@@ -20,9 +21,6 @@ import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTService;
  * Singleton pattern ist sinnvoll, da Service
  */
 public class RESTIOServiceImpl implements RESTIOService {
-
-    RESTService restService = RESTServiceImpl.getInstance();
-    SubscriptionService subService = SubscriptionService.getInstance();
 
     private static RESTIOServiceImpl instance;
 
@@ -60,12 +58,11 @@ public class RESTIOServiceImpl implements RESTIOService {
         }
         RESTRequest request = new RESTRequest(GET, url, params);
 
-        return restService.makeRestCall(request);
+        return RESTService.makeRestCall(request);
     }
 
     @Override
-    public void addSubscription(RESTIOParticipant participant, String topic) {
-        // url muss iwie aus den Discovery Configs gewonnen werden
+    public void addSubscription(Subscriber subscriber, String topic, long bootid) {
         String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
         try {
@@ -75,29 +72,29 @@ public class RESTIOServiceImpl implements RESTIOService {
             e.printStackTrace();
         }
         Map<String, String> params = new HashMap<>();
-        params.put("identifier", participant.getIdentifier());
+        params.put("identifier", subscriber.getIdentifier());
         params.put("topic", topic);
-        params.put("callbackPort", "" + SubscriptionService.getInstance().getCallbackPort());
+        params.put("callbackPort", "" + SubscriptionServiceImpl.getInstance().getCallbackPort());
+        params.put("bootid", "" + bootid);
         RESTRequest request = new RESTRequest(POST, url, params);
 
         RESTResponse response;
         try {
-            response = restService.makeRestCall(request);
+            response = RESTService.makeRestCall(request);
         } catch (IOException e) {
-            participant.onFailedSubscription();
+            SubscriptionServiceImpl.getInstance().onFailedRemoteSubscription(subscriber, topic);
             return;
         }
 
         if (response.getResponseCode() == 200 || response.getResponseCode() == 204) {
-            subService.addSubscription(participant, topic);
-            participant.onSuccessfulSubscription();
+            SubscriptionServiceImpl.getInstance().onSuccessfulRemoteSubscription(subscriber, topic);
         } else {
-            participant.onFailedSubscription();
+            SubscriptionServiceImpl.getInstance().onFailedRemoteSubscription(subscriber, topic);
         }
     }
 
     @Override
-    public void removeSubscription(RESTIOParticipant participant, String topic) {
+    public void removeSubscription(Subscriber subscriber, String topic, long bootid) {
         // url muss iwie aus den Discovery Configs gewonnen werden
         String urlString = "http://localhost:9090/webapi/subscriptionService";
         URL url = null;
@@ -108,42 +105,23 @@ public class RESTIOServiceImpl implements RESTIOService {
             e.printStackTrace();
         }
         Map<String, String> params = new HashMap<>();
-        params.put("identifier", participant.getIdentifier());
+        params.put("identifier", subscriber.getIdentifier());
         params.put("topic", topic);
+        params.put("bootid", "" + bootid);
         RESTRequest request = new RESTRequest(DELETE, url, params);
 
         RESTResponse response;
         try {
-            response = restService.makeRestCall(request);
+            response = RESTService.makeRestCall(request);
         } catch (IOException e) {
-            participant.onFailedUnsubscription();
+            SubscriptionServiceImpl.getInstance().onFailedRemoteSubscriptionRemoval(subscriber, topic);
             return;
         }
 
         if (response.getResponseCode() == 200 || response.getResponseCode() == 204) {
-            // subService.removeSubscription(participant, topic);
-            participant.onSuccessfulUnsubscription();
+            SubscriptionServiceImpl.getInstance().onSuccessfulRemoteSubscriptionRemoval(subscriber, topic);
         } else {
-            participant.onFailedUnsubscription();
-        }
-    }
-
-    @Override
-    public void hasSubscribed(RESTIOParticipant participant, String subscriptionServiceIdentifier) {
-    }
-
-    @Override
-    public void getSubscribedServices(RESTIOParticipant participant) {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public boolean isDeviceOnlineAndReachable() {
-        try {
-            return (callService("onlineAndReachable", null).getResponseCode() == 204);
-        } catch (IOException ex) {
-            return false;
+            SubscriptionServiceImpl.getInstance().onFailedRemoteSubscriptionRemoval(subscriber, topic);
         }
     }
 

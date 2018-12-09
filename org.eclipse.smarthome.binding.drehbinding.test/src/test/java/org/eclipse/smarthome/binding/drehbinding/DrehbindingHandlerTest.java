@@ -18,9 +18,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import org.eclipse.smarthome.binding.drehbinding.deprecated.RESTServiceImpl;
 import org.eclipse.smarthome.binding.drehbinding.handler.DrehbindingHandler;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTIOServiceImpl;
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTServiceImpl;
 import org.eclipse.smarthome.config.core.Configuration;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
