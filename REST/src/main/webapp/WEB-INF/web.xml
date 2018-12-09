@@ -16,16 +16,20 @@
         <url-pattern>/webapi/*</url-pattern>
     </servlet-mapping>
     
+    <!--
     <listener>
     	<listener-class>com.tris.background.EventTask</listener-class>
     </listener>
+    -->
     
     <listener>
     	<listener-class>com.tris.background.UpnpManager</listener-class>
     </listener>
     
+    <!--
     <listener>
     	<listener-class>com.tris.ui.Main</listener-class>
     </listener>
+    -->
     
 </web-app>

@@ -6,6 +6,7 @@ public class Subscription {
 	private String topic;
 	private String callbackAddress;
 	private int port;
+	private long bootid;
 	
 	public String getSubscriberIdentifier() {
 		return subscriberIdentifier;
@@ -30,6 +31,12 @@ public class Subscription {
 	}
 	public void setPort(int port) {
 		this.port = port;
+	}
+	public long getBootid() {
+		return bootid;
+	}
+	public void setBootid(long bootid) {
+		this.bootid = bootid;
 	}
 	
 }

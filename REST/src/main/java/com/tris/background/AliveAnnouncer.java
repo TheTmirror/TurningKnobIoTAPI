@@ -23,7 +23,7 @@ public class AliveAnnouncer {
 	private static final String VERSION = "1";
 	private static final String MULTICAST_ADDRESS = "239.255.255.250";
 	private static final int MULTICAST_PORT = 1900;
-	public static final int EXPIRATION_TIME = 60;
+	public int EXPIRATION_TIME = 60;
 	private static final String DDD_LOCATION = "http://localhost:9090/discovery.xml";
 	private static final String NT_1 = "upnp:rootdevice";
 	private static final String NT_2 = "uuid:" + UUID;
@@ -38,9 +38,10 @@ public class AliveAnnouncer {
 	private long BOOTID;
 	private static final int CONFIGID = 1;
 
-	public AliveAnnouncer(long BOOTID) {
+	public AliveAnnouncer(int expirationTime, long BOOTID) {
 //		Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC+1"));
 //		this.BOOTID = calendar.getTimeInMillis() / 1000L;
+		this.EXPIRATION_TIME = expirationTime;
 		this.BOOTID = BOOTID;
 	}
 	

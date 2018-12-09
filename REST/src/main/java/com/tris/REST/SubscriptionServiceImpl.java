@@ -30,22 +30,20 @@ import org.tris.internal.SubscriptionManager;
 @Path("subscriptionService")
 public class SubscriptionServiceImpl implements SubscriptionService {
 
-	private Logger logger = LoggerFactory.getLogger(SubscriptionServiceImpl.class);
-	private static int counter = 1;
-
 	public SubscriptionServiceImpl() {
 		System.out.println("New Instance was created");
 	}
 
 	@Override
 	@POST
-	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic) {
-		System.out.println("NEW CALL!!!!!!!");
+	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic, @HeaderParam("bootid") long bootid) {
+//		System.out.println("NEW CALL!!!!!!!");
 		Subscription sub = new Subscription();
 		sub.setSubscriberIdentifier(identifier);
 		sub.setTopic(topic);
 		sub.setCallbackAddress(request.getRemoteAddr());
 		sub.setPort(callbackPort);
+		sub.setBootid(bootid);
 		
 		SubscriptionManager.getInstance().addSubscription(sub);
 
@@ -54,7 +52,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
 	@Override
 	@DELETE
-	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic) {
+	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic, @HeaderParam("bootid") long bootid) {
 		SubscriptionManager.getInstance().removeSubscription(topic, identifier);
 		
 		return Response.noContent().build();
@@ -92,7 +90,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		counter++;
 	}
 
 }

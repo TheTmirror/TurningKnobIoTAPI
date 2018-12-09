@@ -16,7 +16,7 @@ public class SearchListener extends Thread {
 	private static final String MULTICAST_ADDR = "239.255.255.250";
 	private static final String DDD_LOCATION = "http://localhost:9090/discovery.xml";
 	private static final String ST = "upnp:rootdevice";
-	private static final String USN = "meinErsterDrehknopf-v0.01";
+	private static final String USN = "meinErsterDrehknopf-v0.02";
 
 	private static final String NEW_LINE = "\r\n";
 	private String responseMsg = "HTTP/1.1 200 OK" + NEW_LINE + "HOST: %s:%d" + NEW_LINE + "EXT:" + NEW_LINE
@@ -48,7 +48,6 @@ public class SearchListener extends Thread {
 			while (true) {
 				receiveMessage();
 				if (isSearch()) {
-//					System.out.println("Here");
 					sendResponse(buildResponse());
 				}
 

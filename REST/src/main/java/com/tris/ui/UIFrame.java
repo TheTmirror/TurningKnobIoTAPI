@@ -82,7 +82,7 @@ public class UIFrame extends JFrame {
 							String subscriberIdentifier = e2.getKey();
 							Subscription sub = e2.getValue();
 
-							displayText = displayText + subscriberIdentifier + "\n";
+							displayText = displayText + subscriberIdentifier + " : " + sub.getBootid() + "\n";
 						}
 						
 						displayText = displayText + "\n";

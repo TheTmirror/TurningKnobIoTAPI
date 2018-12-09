@@ -12,11 +12,9 @@ public class Announcer extends Thread {
 	private Thread timer;
 	private Runnable sendRun;
 
-	public Announcer() {
-		Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC+1"));
-		long bootid = calendar.getTimeInMillis() / 1000L;
+	public Announcer(final int expirationTime, long bootid) {
 
-		alive = new AliveAnnouncer(bootid);
+		alive = new AliveAnnouncer(expirationTime, bootid);
 		bye = new ByeByeAnnouncer(bootid);
 		
 		sendRun = new Runnable() {
@@ -34,7 +32,7 @@ public class Announcer extends Thread {
 				Random r = new Random();
 				while (true) {
 					try {
-						int timeout = r.nextInt(AliveAnnouncer.EXPIRATION_TIME / 2);
+						int timeout = r.nextInt(expirationTime / 2);
 						System.out.println("Next alive msg in: " + timeout + " seconds");
 						TimeUnit.SECONDS.sleep(timeout);
 					} catch (InterruptedException e) {
