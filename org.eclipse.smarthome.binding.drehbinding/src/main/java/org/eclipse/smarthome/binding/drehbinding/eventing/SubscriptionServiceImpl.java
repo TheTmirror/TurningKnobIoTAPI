@@ -43,6 +43,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final Lock shutdownLock;
     private final Lock callbackPortLock;
 
+    private final Map<String, List<Subscriber>> subscriptions;
+
     Runnable callbackListener = new Runnable() {
 
         @Override
@@ -171,8 +173,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
      * Muss es im den Subscriber im Service registrieren, aber auch
      * nen RESTCall nach außen absetzen
      */
-    private final Map<String, List<Subscriber>> subscriptions;
-
     @Override
     public void subscribe(Subscriber subscriber, String topic, long bootid) {
         addSubscription(subscriber, topic);
@@ -230,7 +230,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         removeRemoteSubscription(subscriber, topic, bootid);
     }
 
-    private void removeSubscription(Subscriber subscriber, String topic) {
+    @Override
+    public void removeSubscription(Subscriber subscriber, String topic) {
         // TODO: internal removal
     }
 
@@ -248,4 +249,21 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscriber.onPartialSucessfulUnsubscription(topic);
     }
 
+    @Override
+    public boolean doesSubscriptionExists(Subscriber subscriber, String topic) {
+        boolean result = false;
+        List<Subscriber> allSubscriber;
+
+        synchronized (subscriptions) {
+            allSubscriber = subscriptions.get(topic);
+        }
+
+        synchronized (allSubscriber) {
+            if (allSubscriber != null) {
+                result = allSubscriber.contains(subscriber);
+            }
+        }
+
+        return result;
+    }
 }

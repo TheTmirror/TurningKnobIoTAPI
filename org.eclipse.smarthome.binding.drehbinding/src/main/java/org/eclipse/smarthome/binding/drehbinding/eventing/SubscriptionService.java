@@ -16,4 +16,8 @@ public interface SubscriptionService {
 
     void onFailedRemoteSubscriptionRemoval(Subscriber subscriber, String topic);
 
+    void removeSubscription(Subscriber subscriber, String topic);
+
+    boolean doesSubscriptionExists(Subscriber subscriber, String topic);
+
 }

@@ -46,8 +46,15 @@ public class DrehbindingBindingConstants {
 
     public static final String UDN = "udn";
 
-    // Topic Constants
+    // Static Topic Constants
     public static final String TOPIC_NEW_MOTION = "newMotionEvent";
+    public static final Set<String> STATIC_TOPICS = Collections
+            .unmodifiableSet(Stream.of(TOPIC_NEW_MOTION).collect(Collectors.toSet()));
+
+    // Dynamic Topic Constants
+    public static final String PLACEHOLDER_TOPIC = "PLACEHOLDER TOPIC! DO NOT USE THIS!";
+    public static final Set<String> DYNAMIC_TOPICS = Collections
+            .unmodifiableSet(Stream.of(PLACEHOLDER_TOPIC).collect(Collectors.toSet()));
 
     // Topic Values Constants
     public static final String NAME = "name";
