@@ -1,5 +1,6 @@
 package com.tris.background;
 
+import java.awt.print.Printable;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -7,10 +8,13 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import javax.swing.plaf.synth.SynthSeparatorUI;
 
 public class CorrectedSearchListener extends Thread {
 
@@ -45,8 +49,8 @@ public class CorrectedSearchListener extends Thread {
 
 	private MulticastSocket multiSocket;
 
-	private Queue<DatagramPacket> jobList;
-	private Queue<Response> doneJobs;
+	private BlockingQueue<DatagramPacket> jobList;
+	private BlockingQueue<Response> doneJobs;
 	private ExecutorService service;
 
 	public CorrectedSearchListener(int expirationTime, long bootid) throws IOException {
@@ -55,20 +59,20 @@ public class CorrectedSearchListener extends Thread {
 
 		multiSocket = new MulticastSocket(MULTICAST_PORT);
 		multiSocket.joinGroup(InetAddress.getByName(MULTICAST_ADDRESS));
-		
-		jobList = new ConcurrentLinkedQueue<>();
-		doneJobs = new ConcurrentLinkedQueue<>();
-		service = Executors.newFixedThreadPool(8);
-		
-		for(int i = 0; i < 4; i++) {
-			service.execute(processor);
-			service.execute(sender);
-		}
+
+		jobList = new LinkedBlockingQueue<>();
+		doneJobs = new LinkedBlockingQueue<>();
+
+		service = Executors.newFixedThreadPool(9);
 	}
 
 	@Override
 	public void run() {
-		new Thread(receiver).start();
+		service.execute(receiver);
+		for (int i = 0; i < 4; i++) {
+			service.execute(processor);
+			service.execute(sender);
+		}
 	}
 
 	private Runnable receiver = new Runnable() {
@@ -76,16 +80,15 @@ public class CorrectedSearchListener extends Thread {
 		@Override
 		public void run() {
 			while (true) {
-				byte[] buf = new byte[1024];
-				DatagramPacket packet = new DatagramPacket(buf, buf.length);
 				try {
+					byte[] buf = new byte[1024];
+					DatagramPacket packet = new DatagramPacket(buf, buf.length);
 					multiSocket.receive(packet);
 					System.out.println("Got something from " + packet.getAddress() + ":" + packet.getPort());
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
+					jobList.put(packet);
+				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
 				}
-				jobList.offer(packet);
 
 			}
 		}
@@ -97,46 +100,54 @@ public class CorrectedSearchListener extends Thread {
 		@Override
 		public void run() {
 			while (true) {
-				DatagramPacket packet = jobList.poll();
-				//Aktives warten: Unschön. Besser eine Queue die blockiert wenn sie leer ist
-				if(packet == null) {
-					continue;
-				}
-				if (isSearch(packet)) {
-					System.out.println("Got search");
-					String st = getST(packet);
-					System.out.println("ST is !" + st + "!");
-
-					switch (st) {
-					case ST_ALL:
-						String msgA1 = buildMessage1();
-						String msgA2 = buildMessage2();
-						String msgA3 = buildMessage3();
-						
-						doneJobs.offer(new Response(msgA1, packet.getAddress(), packet.getPort()));
-						doneJobs.offer(new Response(msgA1, packet.getAddress(), packet.getPort()));
-						doneJobs.offer(new Response(msgA1, packet.getAddress(), packet.getPort()));
-						break;
-
-					case ST_1:
-						String msg1 = buildMessage1();
-						doneJobs.offer(new Response(msg1, packet.getAddress(), packet.getPort()));
-						break;
-
-					case ST_2:
-						String msg2 = buildMessage2();
-						doneJobs.offer(new Response(msg2, packet.getAddress(), packet.getPort()));
-						break;
-
-					case ST_3:
-						String msg3 = buildMessage3();
-						doneJobs.offer(new Response(msg3, packet.getAddress(), packet.getPort()));
-						break;
-
-					default:
-						break;
+				try {
+					DatagramPacket packet = jobList.take();
+					if (packet == null) {
+						System.out.println("EXCEPTION HAD TO HAPPEN BEFORE!!!!");
+						continue;
 					}
+					if (isSearch(packet)) {
+						System.out.println("Got search");
+						processMessage(packet);
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
+			}
+		}
+
+		private void processMessage(DatagramPacket packet) throws InterruptedException {
+			String st = getST(packet);
+			System.out.println("ST is !" + st + "!");
+
+			switch (st) {
+			case ST_ALL:
+				String msgA1 = buildMessage1();
+				String msgA2 = buildMessage2();
+				String msgA3 = buildMessage3();
+
+				doneJobs.put(new Response(msgA1, packet.getAddress(), packet.getPort()));
+				doneJobs.put(new Response(msgA1, packet.getAddress(), packet.getPort()));
+				doneJobs.put(new Response(msgA1, packet.getAddress(), packet.getPort()));
+				break;
+
+			case ST_1:
+				String msg1 = buildMessage1();
+				doneJobs.put(new Response(msg1, packet.getAddress(), packet.getPort()));
+				break;
+
+			case ST_2:
+				String msg2 = buildMessage2();
+				doneJobs.put(new Response(msg2, packet.getAddress(), packet.getPort()));
+				break;
+
+			case ST_3:
+				String msg3 = buildMessage3();
+				doneJobs.put(new Response(msg3, packet.getAddress(), packet.getPort()));
+				break;
+
+			default:
+				break;
 			}
 		}
 
@@ -177,43 +188,39 @@ public class CorrectedSearchListener extends Thread {
 		}
 
 	};
-	
+
 	private Runnable sender = new Runnable() {
-		
+
 		@Override
 		public void run() {
-			DatagramSocket sendSocket = null;
 			try {
-				sendSocket = new DatagramSocket();
-			} catch (SocketException e) {
-				// TODO Auto-generated catch block
+				DatagramSocket sendSocket = new DatagramSocket();
+				while (true) {
+					Response response = doneJobs.take();
+					if (response == null) {
+						System.out.println("EXCEPTION HAD TO HAPPEN BEFORE!!!!");
+						continue;
+					}
+					DatagramPacket packet = new DatagramPacket(response.getMsg().getBytes(),
+							response.getMsg().getBytes().length, response.getAddr(), response.getPort());
+					sendSocket.send(packet);
+//					System.out.println("SEARCH Response sent");
+//					System.out.println(new String(packet.getData()));
+//					System.out.println("An " + packet.getAddress() + ":" + packet.getPort());
+					
+				}
+			} catch (NullPointerException | InterruptedException | IOException e) {
 				e.printStackTrace();
-			}
-			while(true) {
-				Response response = doneJobs.poll();
-				//Aktives warten: Unschön. Besser eine Queue die blockiert wenn sie leer ist
-				if(response == null) {
-					continue;
-				}
-				try {
-					sendSocket.send(new DatagramPacket(response.getMsg().getBytes(), response.getMsg().getBytes().length, response.getAddr(), response.getPort()));
-					System.out.println("SEARCH Response sent");
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 			}
 		}
 	};
-	
 
-	
 	private class Response {
-		
+
 		private String msg;
 		private InetAddress addr;
 		private int port;
-		
+
 		private Response(String msg, InetAddress addr, int port) {
 			this.msg = msg;
 			this.addr = addr;
@@ -243,7 +250,7 @@ public class CorrectedSearchListener extends Thread {
 		public void setPort(int port) {
 			this.port = port;
 		}
-		
+
 	}
-	
+
 }

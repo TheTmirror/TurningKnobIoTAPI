@@ -37,7 +37,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	@Override
 	@POST
 	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic, @HeaderParam("bootid") long bootid) {
-//		System.out.println("NEW CALL!!!!!!!");
+		System.out.println("NEW CALL!!!!!!!");
 		Subscription sub = new Subscription();
 		sub.setSubscriberIdentifier(identifier);
 		sub.setTopic(topic);

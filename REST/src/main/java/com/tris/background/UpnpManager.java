@@ -27,14 +27,12 @@ public class UpnpManager extends Thread implements ServletContextListener {
 		long bootid = calendar.getTimeInMillis() / 1000L;
 		
 		try {
-//			SearchListener search = new SearchListener();
-//			search.start();
 			
 			CorrectedSearchListener search = new CorrectedSearchListener(this.EXPIRATION_TIME, bootid);
 			search.start();
 			
-			Announcer announcer = new Announcer(60, bootid);
-//			announcer.start();
+			Announcer announcer = new Announcer(this.EXPIRATION_TIME, bootid);
+			announcer.start();
 			
 			TimeUnit.SECONDS.sleep(120);
 //			System.out.println("Kicking off shutdown");
