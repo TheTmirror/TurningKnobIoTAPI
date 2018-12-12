@@ -233,6 +233,21 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     public void removeSubscription(Subscriber subscriber, String topic) {
         // TODO: internal removal
+        List<Subscriber> allSubscriber;
+
+        synchronized (subscriptions) {
+            if (!subscriptions.containsKey(topic)) {
+                return;
+            }
+
+            allSubscriber = subscriptions.get(topic);
+        }
+
+        synchronized (allSubscriber) {
+            if (allSubscriber.contains(subscriber)) {
+                allSubscriber.remove(subscriber);
+            }
+        }
     }
 
     private void removeRemoteSubscription(Subscriber subscriber, String topic, long bootid) {
@@ -251,19 +266,22 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     @Override
     public boolean doesSubscriptionExists(Subscriber subscriber, String topic) {
-        boolean result = false;
         List<Subscriber> allSubscriber;
 
         synchronized (subscriptions) {
-            allSubscriber = subscriptions.get(topic);
+            if (!subscriptions.containsKey(topic)) {
+                return false;
+            } else {
+                allSubscriber = subscriptions.get(topic);
+            }
         }
 
         synchronized (allSubscriber) {
             if (allSubscriber != null) {
-                result = allSubscriber.contains(subscriber);
+                return allSubscriber.contains(subscriber);
             }
         }
 
-        return result;
+        return false;
     }
 }

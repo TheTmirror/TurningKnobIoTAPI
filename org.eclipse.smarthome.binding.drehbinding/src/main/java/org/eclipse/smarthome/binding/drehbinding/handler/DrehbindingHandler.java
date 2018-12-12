@@ -27,8 +27,6 @@ import org.eclipse.smarthome.binding.drehbinding.eventing.Subscriber;
 import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionService;
 import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionServiceImpl;
 import org.eclipse.smarthome.binding.drehbinding.internal.DrehbindingConfiguration;
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
-import org.eclipse.smarthome.binding.drehbinding.internal.REST.implementation.RESTIOServiceImpl;
 import org.eclipse.smarthome.core.library.types.DateTimeType;
 import org.eclipse.smarthome.core.library.types.StringType;
 import org.eclipse.smarthome.core.thing.Channel;
@@ -39,8 +37,10 @@ import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
 import org.jupnp.UpnpService;
+import org.jupnp.model.meta.Device;
 import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.RemoteDevice;
+import org.jupnp.model.types.UDN;
 import org.jupnp.registry.Registry;
 import org.jupnp.registry.RegistryListener;
 import org.slf4j.Logger;
@@ -60,8 +60,6 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
     @Nullable
     private DrehbindingConfiguration config;
 
-    private final RESTIOService restIOService = RESTIOServiceImpl.getInstance();
-
     private final SubscriptionService subscriptionService = SubscriptionServiceImpl.getInstance();
 
     /*
@@ -69,16 +67,17 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
      */
     private final long bootid;
 
-    private final UpnpService upnpService;
-
     // Flag für RegistryListener Spezialfall 2)
     private boolean addedFlag = false;
     private final Lock addedFlagLock;
 
+    private final Object modificationLock;
+    private final UpnpService upnpService;
+
     public DrehbindingHandler(Thing thing, UpnpService upnpService) {
         super(thing);
-        this.upnpService = upnpService;
         this.addedFlagLock = new ReentrantLock();
+        this.upnpService = upnpService;
 
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC+1"));
         bootid = calendar.getTimeInMillis() / 1000L;
@@ -88,7 +87,9 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
          * or after the constructor. Is it safe to assume the upnpService and the
          * getThing are always != null?
          */
-        upnpService.getRegistry().addListener(this);
+        // upnpService.getRegistry().addListener(this);
+
+        modificationLock = new Object();
     }
 
     @Override
@@ -148,7 +149,11 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
      */
     @Override
     public void initialize() {
+        logger.debug("Initializing");
         updateStatus(ThingStatus.UNKNOWN);
+
+        Device device = upnpService.getRegistry().getDevice(new UDN(getThing().getProperties().get(UDN)), false);
+        logger.debug("Device is null? {}", (device == null));
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly. Also, before leaving this method a thing
@@ -174,10 +179,26 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
 
     @Override
     public void dispose() {
+        logger.debug("Disoposed was called");
         // Wird dies gebraucht?
         super.dispose();
 
-        unsubscribe();
+        /*
+         * Wenn das Thing noch online ist, wird das remote unsubscriben angestoßen werden, damit das Device
+         * synchronisiert bleiben kann. Sollte es nicht online sein hat es eh keine Subscriptions vorliegen. Die
+         * Subscriptions des Handlers müssen dann nur lokal entfernt werden. Eine lokale Entfernung ist erfordlerlich,
+         * da der SubscriptionService gegebenfalls noch andere Handler betreut und wir keine falschen Subscriptions
+         * vorliegen haben wollen.
+         */
+        if (getThing().getStatus() == ThingStatus.ONLINE) {
+            synchronized (modificationLock) {
+                unsubscribeFromAllTopics();
+            }
+        } else {
+            synchronized (modificationLock) {
+                unsubscribeFromAllTopicsLocaly();
+            }
+        }
     }
 
     @Override
@@ -208,15 +229,47 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
     }
 
     private void subscribe(String topic) {
-        // Abgedeckt: 1, 2
         logger.trace("Subscribing for topic {} with bootid {}", TOPIC_NEW_MOTION, bootid);
         subscriptionService.subscribe(this, topic, bootid);
     }
 
-    private void unsubscribe() {
-        // Abgedeckt: 3
+    private void unsubscribeFromAllTopics() {
+        unsubscribeFromAllStaticTopics();
+        unsubscribeFromAllDynamicTopics();
+    }
+
+    private void unsubscribeFromAllStaticTopics() {
+        for (String topic : STATIC_TOPICS) {
+            unsubscribe(topic);
+        }
+    }
+
+    private void unsubscribeFromAllDynamicTopics() {
+        // TODO: dynamic topic unsubscription
+    }
+
+    private void unsubscribe(String topic) {
         logger.trace("Unsubscribing from topic {} with bootid {}", TOPIC_NEW_MOTION, bootid);
-        subscriptionService.unsubscribe(this, TOPIC_NEW_MOTION, bootid);
+        subscriptionService.unsubscribe(this, topic, bootid);
+    }
+
+    private void unsubscribeFromAllTopicsLocaly() {
+        unsubscribeFromAllStaticTopicsLocaly();
+        unsubscribeFromAllDynamicTopicsLocaly();
+    }
+
+    private void unsubscribeFromAllStaticTopicsLocaly() {
+        for (String topic : STATIC_TOPICS) {
+            unsubscribeLocaly(topic);
+        }
+    }
+
+    private void unsubscribeFromAllDynamicTopicsLocaly() {
+        // TODO: Hier muss noch was rein
+    }
+
+    private void unsubscribeLocaly(String topic) {
+        subscriptionService.removeSubscription(this, topic);
     }
 
     @Override
@@ -234,10 +287,11 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
     @Override
     public void onFullSuccessfulSubscription(String topic) {
         logger.debug("Subscribed successful for {}", topic);
+        updateStatus(ThingStatus.ONLINE);
     }
 
     /*
-     * Should never happen, the handler will only subscribe if he received and online signal. Even so, this case should
+     * Should never happen, the handler will only subscribe if he received an online signal. Even so, this case should
      * be handled.
      *
      * In such case, all localy added subscriptions must be removed.
@@ -249,28 +303,28 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
      */
     @Override
     public void onPartialSucessfulSubscription(String topic) {
+        logger.debug("Subscribed partialy successful for {}", topic);
+
         if (isTopicStatic(topic)) {
             // Static Subscriptions (topics)
-            logger.debug("Subscribed partialy successful for {}", topic);
             logger.debug("This means full subscriptions failed. Removing all local subscriptions");
-
-            subscriptionService.removeSubscription(this, topic);
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR);
+            unsubscribeLocaly(topic);
         } else {
             // Dynamic Subscriptions (topics)
-            // TODO: Siehe Word Dokument 1aii)
-            // Simulation for to do: All retrys failed
-            subscriptionService.removeSubscription(this, topic);
+            /*
+             * Es sollten retrys geben. Für jetzt wird estmal das Versagen aller Retrys simuliert.
+             */
+            logger.debug("This means full subscriptions failed. Removing all local subscriptions");
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR);
+            unsubscribeLocaly(topic);
         }
     }
 
     /*
      * Should normaly happen if:
      * 1) The device goes offline after the binding
-     * 2) The device goes offline before the binding but has a mechanism to wait a couple of seconds to get all expected
-     * removing requests.
-     * 3) The device and binding stay online but the binding want for whatever reason to unsubscribe for this topic
+     * 2) The device and binding stay online but the binding want for whatever reason to unsubscribe for this topic
      *
      * (non-Javadoc)
      *
@@ -280,6 +334,7 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
     @Override
     public void onFullSuccessfullUnsubscription(String topic) {
         logger.debug("Unsubscribed successful for {}", topic);
+        updateStatus(ThingStatus.ONLINE);
     }
 
     /*
@@ -318,12 +373,39 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
      */
     @Override
     public void onPartialSucessfulUnsubscription(String topic) {
-        logger.debug("Snsubscribed partialy successful for {}", topic);
+        logger.debug("Unsubscribed partialy successful for {}", topic);
+        if (isTopicStatic(topic)) {
+            /*
+             * Es muss nicht unternommen werden, lokal wurde die Subscription bereits entfernt.
+             * Bei einer erneuten Subscription kann das Device damit umgehen. Außerdem findet eine neue Subscription der
+             * static Topics eh nur dann statt wenn das System neugestartet wird und dann gibt es eine neue Bootid.
+             *
+             * Obwohl es zu einer PSU nur im dispose Vorgang kommen kann, also der Handler offline geht, wird der
+             * DeviceStatus zur semantischen Korrektheit trotzdem auf offline gesetzt, auch wenn es eigentlich redundant
+             * ist.
+             */
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR);
+        } else {
+            /*
+             * Sollte eine Unsubscription eines dynamischen Topics fehlschlagen gibt es zwei Möglichkeiten:
+             * 1) Man versucht einige Retrys. Damit wird dem Device die Chance gegeben wieder erreichbar zu sein, bevor
+             * es den OfflineStatus bekommt. Sollten mehrere Retrys fehlschlagen, wird davon ausgegangen, dass das
+             * Device Offline ist. Möglichkeit 2) greift dann.
+             *
+             * 2) Eine Kommunikation war nicht möglich. Der Status des Device wird auf offline gesetzt. Die lokale
+             * Subscription wurde bereits entfernt. Ein explizites Entfernen muss daher also nicht angestoßen werden.
+             * Sollte das Device fehlerhaft alss offline gekennzeichnet werden (es war nur nicht erreichbar), so ist der
+             * worst case, dass das Device neue Events für die bei ihm nicht entfernte Subscription an den
+             * SubscriptionService des Bindings sendet. Das Binding reagiert darauf und leitet die Events nicht weiter.
+             * Sollte sich für dieses dynamische Topic im selben Betrieb erneut subscribed werden, so kann das Device
+             * damit umgehen.
+             */
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR);
+        }
     }
 
     private boolean isTopicStatic(String topic) {
-        // TODO: Implement logic instead of dummy
-        return true;
+        return STATIC_TOPICS.contains(topic);
     }
 
     /*
@@ -379,12 +461,11 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
             return;
         }
 
-        addedFlagLock.lock();
-        addedFlag = true;
-        addedFlagLock.unlock();
         logger.debug("Set thing status: online!");
-        updateStatus(ThingStatus.ONLINE);
-        subscribeForAllStaticTopics();
+        synchronized (modificationLock) {
+            updateStatus(ThingStatus.ONLINE);
+            subscribeForAllStaticTopics();
+        }
     }
 
     private boolean isDeviceRelevant(RemoteDevice device) {
@@ -434,6 +515,7 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
         // In 2) erklärten Spezialfall abfangen
         addedFlagLock.lock();
         if (!addedFlag) {
+            addedFlag = true;
             addedFlagLock.unlock();
             logger.debug("Update instead of addition. Therefor simulating added");
             remoteDeviceAdded(registry, device);
@@ -443,13 +525,31 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
 
         // Hier beginnt die eigentliche Update Methode
         // Wenn das Device eine Alive Message geschickt hat muss es folglich online sein
+        logger.debug("Updating thing status to online");
         updateStatus(ThingStatus.ONLINE);
 
         /*
          * Falls ein Static Service noch nicht Subscribed ist muss ein Subscritpionversuch erfolgen
          */
+        /*
+         * TODO: Denke über folgenden Fehler nach: Was passiert wenn der Subscribe Prozess gleichzeitig mit der
+         * Überprüfung der forschleife stattfindet. Es könnte zu Fehlern kommen, je nachdem in welcher Reihenfolge die
+         * Subscriptions hinzugefügt und geprüft werden.
+         *
+         * Bsp:
+         * Subs A, B und C sollen hinzugefügt werden. Zur gleichen zeit wird von einem anderen Thread
+         * remoteDeviceUpdated aufgerufen und doesSubscriptionExists wird aufgerufen.
+         * Es passiert folgende Reihenfolge (+ = hinzugefügt, ! = geprüft):
+         * A+, B+, A!, B!, C!, C+
+         *
+         * A und B während korrekt erkannt gewesen, doch C wurde erst geprüft und dann hinzugefügt, wodurch es
+         * als fehlend betrachtet wird und eine erneute Subscription angestoßen wird.
+         *
+         * Dies muss irgendwie verhindert werden!
+         */
         for (String topic : STATIC_TOPICS) {
             if (!subscriptionService.doesSubscriptionExists(this, topic)) {
+                logger.debug("It was not subscribed to static topic {}! Trying it now again!", topic);
                 subscribe(topic);
             }
         }
@@ -458,17 +558,36 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
 
     @Override
     public void remoteDeviceRemoved(@Nullable Registry registry, @Nullable RemoteDevice device) {
-        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
-        String thingUDN = getThing().getProperties().get(UDN);
-        logger.debug(deviceUDN);
-        logger.debug(thingUDN);
-
-        if (deviceUDN.equals(thingUDN)) {
-            logger.debug("Set thing status: offline!");
-            updateStatus(ThingStatus.OFFLINE);
-            // Problem: Expiring und ByeBye können nicht unterschieden werden.
-            unsubscribe();
+        if (device == null) {
+            return;
         }
+
+        if (!isDeviceRelevant(device)) {
+            return;
+        }
+
+        logger.debug("Set thing status: offline!");
+        updateStatus(ThingStatus.OFFLINE);
+
+        // Problem: Expiring und ByeBye können nicht unterschieden werden.
+        /*
+         * Es ist erkannt worden, dass das Device offline ist! Es muss also davon ausgegangen werden, dass das
+         * Device alle Subscriptions verwerfen wird bzw hat. Sollte das Device allerdings nur offline gegangen sein
+         * weil es das Binding nicht erreichen kann, heißt es in Wirklichkeit noch online, aber es kommen keine
+         * Alive messages mehr an, so muss das Binding dennoch davon ausgehen, dass das Device wirklich offline ist.
+         * Beim nächsten "online gehen" (in Wirklichkeit nur Wiedererreichbarkeit) kann eine Asynchronität
+         * vorliegen. Es könnten innerhalb des Devices noch Subscriptions vorliegen, für die sich das Binding schon
+         * lokal unsubscribed hat. Aus Sicht der Bindings ist diese Asynchronität kein Problem, da der
+         * SubscriptionService solche Informationen einfach verwirft (er könnte in solchen Fällen gegebenfalls das
+         * Binding dazu auffordern die Subscription auch remote bei sich zu entfernen). Das Binding muss allerdings
+         * bereit sein neue Subscriptions des selben Subscriber für das selbe Topic mit der selben Bootid
+         * entgegenzunehmen. In solch einem Fall soll das Device die alten Subscription mit der neuen überschreiben
+         * und schon sind Binding und Device wieder synchron.
+         *
+         * Gegebenfalls kann dem Binding eine von hier aus aufgerufene FSU vorgaukeln nachdem es für all Topics
+         * lokal unsubscribed hat.
+         */
+        unsubscribeFromAllTopicsLocaly();
     }
 
     @Override

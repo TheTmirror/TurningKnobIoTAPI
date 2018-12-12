@@ -3,6 +3,7 @@ package com.tris.REST;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +37,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
 	@Override
 	@POST
-	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic, @HeaderParam("bootid") long bootid) {
+	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort,
+			@HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic,
+			@HeaderParam("bootid") long bootid) {
 		System.out.println("NEW CALL!!!!!!!");
 		Subscription sub = new Subscription();
 		sub.setSubscriberIdentifier(identifier);
@@ -44,7 +47,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 		sub.setCallbackAddress(request.getRemoteAddr());
 		sub.setPort(callbackPort);
 		sub.setBootid(bootid);
-		
+
 		SubscriptionManager.getInstance().addSubscription(sub);
 
 		return Response.noContent().build();
@@ -52,21 +55,24 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
 	@Override
 	@DELETE
-	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort, @HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic, @HeaderParam("bootid") long bootid) {
+	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort,
+			@HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic,
+			@HeaderParam("bootid") long bootid) {
 		SubscriptionManager.getInstance().removeSubscription(topic, identifier);
-		
+
 		return Response.noContent().build();
 	}
 
 	@Override
 	public void onEvent(Event event) {
-		Map<String, Subscription> subsForTopicX = SubscriptionManager.getInstance().getCopyOfSubsForTopic(event.getTopic());
-		
-		if(subsForTopicX == null) {
+		Map<String, Subscription> subsForTopicX = SubscriptionManager.getInstance()
+				.getCopyOfSubsForTopic(event.getTopic());
+
+		if (subsForTopicX == null) {
 			return;
 		}
-		
-		for(Entry<String, Subscription> e : subsForTopicX.entrySet()) {
+
+		for (Entry<String, Subscription> e : subsForTopicX.entrySet()) {
 			Subscription sub = e.getValue();
 			sendEventNotification(sub, event);
 		}
@@ -75,20 +81,38 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	private void sendEventNotification(Subscription sub, Event event) {
 		System.out.println("I'm notifying someone!");
 		String sentence = "topic:" + event.getTopic() + ";";
-		
-		for(Entry<String, String> e : event.getValues().entrySet()) {
+
+		for (Entry<String, String> e : event.getValues().entrySet()) {
 			sentence = sentence + e.getKey() + ":" + e.getValue() + ";";
 		}
-		
-		Socket clientSocket;
+
+		Socket clientSocket = null;
 		try {
 			clientSocket = new Socket(sub.getCallbackAddress(), sub.getPort());
 			DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
 			outToServer.writeBytes(sentence);
 			clientSocket.close();
+		} catch (ConnectException e) {
+			/*
+			 * Es konnte keine Verbindung aufgebaut werden. Wahrscheinlich hat das Device
+			 * eine Unsubscription nicht mitbekommen und versucht jetzt jemanden zu
+			 * benachrichtigen der aktuell offline ist.
+			 * 
+			 * Bis eine sehr gute Lösung gefunden wird, wird die Notificiation dieses
+			 * Subscribers einfach übergangen.
+			 */
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			if(clientSocket != null) {
+				try {
+					clientSocket.close();
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
 		}
 	}
 

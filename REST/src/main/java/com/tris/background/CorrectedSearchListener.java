@@ -84,7 +84,7 @@ public class CorrectedSearchListener extends Thread {
 					byte[] buf = new byte[1024];
 					DatagramPacket packet = new DatagramPacket(buf, buf.length);
 					multiSocket.receive(packet);
-					System.out.println("Got something from " + packet.getAddress() + ":" + packet.getPort());
+//					System.out.println("Got something from " + packet.getAddress() + ":" + packet.getPort());
 					jobList.put(packet);
 				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();

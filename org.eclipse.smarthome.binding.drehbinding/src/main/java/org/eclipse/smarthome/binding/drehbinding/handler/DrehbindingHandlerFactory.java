@@ -49,6 +49,7 @@ public class DrehbindingHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_DREHKNOPF.equals(thingTypeUID)) {
+            logger.debug("Building a new Handler for {}", thing.getUID());
             return new DrehbindingHandler(thing, upnpService);
         }
 

@@ -84,6 +84,12 @@ public class SubscriptionManager {
 		}
 
 		subLock.lock();
+		/*
+		 * Fängt auch automatisch den Problemfall aii) aus dem Worddokument ab (Erneute
+		 * Registrierung des Subscriber für das selbe Topic mit der selben Bootid).
+		 * .put() ersetzt glücklicherweise automatisch den alten value durch den neuen,
+		 * was auch so gewünscht ist.
+		 */
 		subsForTopicX.put(subscription.getSubscriberIdentifier(), subscription);
 		subLock.unlock();
 		lock.unlock();
