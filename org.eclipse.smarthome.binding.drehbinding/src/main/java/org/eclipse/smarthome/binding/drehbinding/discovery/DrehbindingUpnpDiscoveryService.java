@@ -44,7 +44,7 @@ public class DrehbindingUpnpDiscoveryService implements UpnpDiscoveryParticipant
             return null;
         }
 
-        logDeviceInformations(device);
+        // logDeviceInformations(device);
 
         Map<String, Object> properties = new HashMap<>(2);
 

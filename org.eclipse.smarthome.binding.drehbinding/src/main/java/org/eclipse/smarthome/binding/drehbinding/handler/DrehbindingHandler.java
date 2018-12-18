@@ -37,7 +37,6 @@ import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
 import org.jupnp.UpnpService;
-import org.jupnp.model.meta.Device;
 import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.types.UDN;
@@ -152,8 +151,37 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
         logger.debug("Initializing");
         updateStatus(ThingStatus.UNKNOWN);
 
-        Device device = upnpService.getRegistry().getDevice(new UDN(getThing().getProperties().get(UDN)), false);
+        /*
+         * Dies wird eintreten, sollte das Device sich noch nicht in den Things befinden, heißt es gibt noch keinen
+         * Handler. Fakt ist nämlich, dass Handler für bereits schon vorhandene Devices hinzugefügt (initialisiert)
+         * werden, bevor das UpnpDiscovery Überhaupt gestartet wird. Das heißt für alle diese Handler für schon
+         * vorhandene Things, wird die Registry nie einträge enthalten und das Device wird immer == null sein.
+         *
+         * Bei Handler für schon hinzugefügte Things wird während der Initialisierung der RegistryListener hinzugefügt
+         * und deshalb wird remoteDeviceAdded aufgerufen, sobald der UpnpService das Device, welches bereits als Thing
+         * vorliegt, erkennt. Ein Update wird dabei scheinbar nicht gekickt, es sei denn, rein zufällig sendet das
+         * Device zum gleichen Zeitpunkt eine AliveMessage raus.
+         *
+         * Bei Devices die gerade erst als neue Things hinzugefügt werden sollen, entdeckt das UpnpDiscovery diese,
+         * bevor überhaupt ein potentieller Handler entsteht. Dieser wird nämlich erst angelegt, wenn der Nutzer sich
+         * dazu entscheidet das Device als Thing hinzuzufügen. Dadurch liegt das Device bereits in der Registry vor und
+         * die remoteDeviceAdded Methode kann niemals aufgerufen werden, da das Device zur Registry hinzugefügt wurde,
+         * bevor der Handler überhaupt existiert hat (und bei der Initialisierung des Handlers wird schließlich der
+         * Listener hinzugefügt). Deshalb gibt es während der Initialisierung ob das Gerät der Registry bereits
+         * vorliegt.
+         */
+        RemoteDevice device = upnpService.getRegistry().getRemoteDevice(new UDN(getThing().getProperties().get(UDN)),
+                false);
         logger.debug("Device is null? {}", (device == null));
+        if (device != null) {
+            updateStatus(ThingStatus.ONLINE);
+            remoteDeviceAdded(upnpService.getRegistry(), device);
+        } else {
+            updateStatus(ThingStatus.OFFLINE);
+        }
+
+        upnpService.getRegistry().addListener(this);
+        logger.debug("Listener added!");
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly. Also, before leaving this method a thing
@@ -430,7 +458,9 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
             case TOPIC_NEW_MOTION:
                 String name = values.get(NAME);
                 updateState(CHANNEL_LAST_MOTION, new StringType(name));
+                logger.debug("Done");
                 updateState(CHANNEL_EVENT_TIME, new DateTimeType());
+                logger.debug("DONE");
                 break;
 
             default:
@@ -461,20 +491,36 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
             return;
         }
 
+        /*
+         * Spezialfall. Es kann vorkommen, dass gleichzeitig die Methoden remoteDeviceAdded und remoteDeviceUpdated
+         * betreten werden. Dies passsiert wenn (natürlich nicht deterministisch) es bereits einen ThingHandler bei
+         * Systemstart gab und das Device nicht zum allerersten Mal discovered wurde, sondern erneut discovered wurde.
+         * Mit Pech kann die Added Methode gefeuert werden und nahe zu zeitgleich wird vom Device eine AliveMessage
+         * ausgesendet und vom Handler aufgefangen welcher dann die Updated Methode aufruft. Dadurch können beide
+         * Methoden nahe zur gleichen Zeit aufgerufen werden.
+         *
+         * Entweder die Added Methode erreicht das Lock, dann muss verhindert werden, dass die Update Methode denkt sie
+         * müsste die Added Methode simulieren ODER aber doe Update Methode erreicht zuerst ihr Lock, und simuliert dann
+         * die Added Methode. Dann sind zwei Added Methoden im Spiel, aber nur eine darf ausgeführt werden, dafür ist
+         * dann der else Zweig da, dass eine Methode returnen kann (Theoretisch könnte man diese dann auch auf ein
+         * Update abbilden).
+         */
+        addedFlagLock.lock();
+        if (!addedFlag) {
+            addedFlag = true;
+            addedFlagLock.unlock();
+        } else {
+            addedFlagLock.unlock();
+            return;
+        }
+
+        logger.debug("Added Device");
+
         logger.debug("Set thing status: online!");
+        updateStatus(ThingStatus.ONLINE);
         synchronized (modificationLock) {
-            updateStatus(ThingStatus.ONLINE);
             subscribeForAllStaticTopics();
         }
-    }
-
-    private boolean isDeviceRelevant(RemoteDevice device) {
-        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
-        String thingUDN = getThing().getProperties().get(UDN);
-        logger.trace(deviceUDN);
-        logger.trace(thingUDN);
-
-        return deviceUDN.equals(thingUDN);
     }
 
     /*
@@ -512,12 +558,15 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
 
         logger.trace("Received an update for my device!");
 
-        // In 2) erklärten Spezialfall abfangen
+        /*
+         * Um einen den in remoteDeviceAdded erklärten Spezialfall abzufangen
+         */
         addedFlagLock.lock();
         if (!addedFlag) {
             addedFlag = true;
             addedFlagLock.unlock();
             logger.debug("Update instead of addition. Therefor simulating added");
+            logger.error("!!!!!!! Spezialfall ist eingetreten !!!!!!!!!!!!!");
             remoteDeviceAdded(registry, device);
             return;
         }
@@ -547,10 +596,12 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
          *
          * Dies muss irgendwie verhindert werden!
          */
-        for (String topic : STATIC_TOPICS) {
-            if (!subscriptionService.doesSubscriptionExists(this, topic)) {
-                logger.debug("It was not subscribed to static topic {}! Trying it now again!", topic);
-                subscribe(topic);
+        synchronized (modificationLock) {
+            for (String topic : STATIC_TOPICS) {
+                if (!subscriptionService.doesSubscriptionExists(this, topic)) {
+                    logger.debug("It was not subscribed to static topic {}! Trying it now again!", topic);
+                    subscribe(topic);
+                }
             }
         }
 
@@ -567,27 +618,38 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
         }
 
         logger.debug("Set thing status: offline!");
-        updateStatus(ThingStatus.OFFLINE);
+        synchronized (modificationLock) {
+            updateStatus(ThingStatus.OFFLINE);
 
-        // Problem: Expiring und ByeBye können nicht unterschieden werden.
-        /*
-         * Es ist erkannt worden, dass das Device offline ist! Es muss also davon ausgegangen werden, dass das
-         * Device alle Subscriptions verwerfen wird bzw hat. Sollte das Device allerdings nur offline gegangen sein
-         * weil es das Binding nicht erreichen kann, heißt es in Wirklichkeit noch online, aber es kommen keine
-         * Alive messages mehr an, so muss das Binding dennoch davon ausgehen, dass das Device wirklich offline ist.
-         * Beim nächsten "online gehen" (in Wirklichkeit nur Wiedererreichbarkeit) kann eine Asynchronität
-         * vorliegen. Es könnten innerhalb des Devices noch Subscriptions vorliegen, für die sich das Binding schon
-         * lokal unsubscribed hat. Aus Sicht der Bindings ist diese Asynchronität kein Problem, da der
-         * SubscriptionService solche Informationen einfach verwirft (er könnte in solchen Fällen gegebenfalls das
-         * Binding dazu auffordern die Subscription auch remote bei sich zu entfernen). Das Binding muss allerdings
-         * bereit sein neue Subscriptions des selben Subscriber für das selbe Topic mit der selben Bootid
-         * entgegenzunehmen. In solch einem Fall soll das Device die alten Subscription mit der neuen überschreiben
-         * und schon sind Binding und Device wieder synchron.
-         *
-         * Gegebenfalls kann dem Binding eine von hier aus aufgerufene FSU vorgaukeln nachdem es für all Topics
-         * lokal unsubscribed hat.
-         */
-        unsubscribeFromAllTopicsLocaly();
+            // Problem: Expiring und ByeBye können nicht unterschieden werden.
+            /*
+             * Es ist erkannt worden, dass das Device offline ist! Es muss also davon ausgegangen werden, dass das
+             * Device alle Subscriptions verwerfen wird bzw hat. Sollte das Device allerdings nur offline gegangen sein
+             * weil es das Binding nicht erreichen kann, heißt es in Wirklichkeit noch online, aber es kommen keine
+             * Alive messages mehr an, so muss das Binding dennoch davon ausgehen, dass das Device wirklich offline ist.
+             * Beim nächsten "online gehen" (in Wirklichkeit nur Wiedererreichbarkeit) kann eine Asynchronität
+             * vorliegen. Es könnten innerhalb des Devices noch Subscriptions vorliegen, für die sich das Binding schon
+             * lokal unsubscribed hat. Aus Sicht der Bindings ist diese Asynchronität kein Problem, da der
+             * SubscriptionService solche Informationen einfach verwirft (er könnte in solchen Fällen gegebenfalls das
+             * Binding dazu auffordern die Subscription auch remote bei sich zu entfernen). Das Binding muss allerdings
+             * bereit sein neue Subscriptions des selben Subscriber für das selbe Topic mit der selben Bootid
+             * entgegenzunehmen. In solch einem Fall soll das Device die alten Subscription mit der neuen überschreiben
+             * und schon sind Binding und Device wieder synchron.
+             *
+             * Gegebenfalls kann dem Binding eine von hier aus aufgerufene FSU vorgaukeln nachdem es für all Topics
+             * lokal unsubscribed hat.
+             */
+            unsubscribeFromAllTopicsLocaly();
+        }
+    }
+
+    private boolean isDeviceRelevant(RemoteDevice device) {
+        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
+        String thingUDN = getThing().getProperties().get(UDN);
+        logger.trace("Found: {}", deviceUDN);
+        logger.trace("Looking for: {}", thingUDN);
+
+        return deviceUDN.equals(thingUDN);
     }
 
     @Override
