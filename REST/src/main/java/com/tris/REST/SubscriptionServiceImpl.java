@@ -40,7 +40,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	public Response subscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort,
 			@HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic,
 			@HeaderParam("bootid") long bootid) {
-		System.out.println("NEW CALL!!!!!!!");
+		System.out.println("REST - Call for new subscription!");
 		Subscription sub = new Subscription();
 		sub.setSubscriberIdentifier(identifier);
 		sub.setTopic(topic);
@@ -58,6 +58,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	public Response unsubscribe(@Context HttpServletRequest request, @HeaderParam("callbackPort") int callbackPort,
 			@HeaderParam("identifier") String identifier, @HeaderParam("topic") String topic,
 			@HeaderParam("bootid") long bootid) {
+		System.out.println("REST - Call for subscription removal");
 		SubscriptionManager.getInstance().removeSubscription(topic, identifier);
 
 		return Response.noContent().build();
@@ -79,7 +80,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 	}
 
 	private void sendEventNotification(Subscription sub, Event event) {
-		System.out.println("I'm notifying someone!");
+		System.out.println("I'm notifying " + sub.getSubscriberIdentifier());
 		String sentence = "topic:" + event.getTopic() + ";";
 
 		for (Entry<String, String> e : event.getValues().entrySet()) {
@@ -94,6 +95,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 			clientSocket.close();
 		} catch (ConnectException e) {
 			/*
+			 * TODO: Beheb den Versuch, eine nicht vorhanden Subscriber zu callen
+			 * 
 			 * Es konnte keine Verbindung aufgebaut werden. Wahrscheinlich hat das Device
 			 * eine Unsubscription nicht mitbekommen und versucht jetzt jemanden zu
 			 * benachrichtigen der aktuell offline ist.

@@ -5,7 +5,6 @@ import java.util.Map;
 public class Event {
 
 	private String topic;
-	
 	private Map<String, String> values;
 	
 	public Event() {
