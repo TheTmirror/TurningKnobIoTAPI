@@ -1,0 +1,14 @@
+<root>
+	<configId>1</configId>
+	<upnpVersion>1.1</upnpVersion>
+	<domainName>tristanDomain</domainName>
+	<deviceType>drehknopf</deviceType>
+	<version>1</version>
+	<friendlyName>Drehknopf</friendlyName>
+	<manufacturer>Tristan</manufacturer>
+	<modelName>drehknopfPrototype</modelName>
+	<modelNumber>1</modelNumber>
+	<serialNumber>B8-27-EB-BE-1E-4A</serialNumber>
+	<UUID>meinErsterDrehknopf:B8-27-EB-BE-1E-4A</UUID>
+	<UDN>uuid:meinErsterDrehknopf:B8-27-EB-BE-1E-4A</UDN>
+</root>
