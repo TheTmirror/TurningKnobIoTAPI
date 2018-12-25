@@ -8,6 +8,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.tris.REST.SubscriptionService;
 
+/*
+ * TODO: DIE BOOTIDS MÜSSEN BEACHTET WERDEN!!!!!!!!!!!!!!!!!!!!!!!
+ */
 public class SubscriptionManager {
 
 	private static SubscriptionManager instance;
@@ -74,6 +77,8 @@ public class SubscriptionManager {
 					subsForTopicX.remove(subscription).getSubscriberIdentifier();
 				}
 			}
+			lock.unlock();
+			subLock.unlock();
 		}
 
 		lock.lock();
