@@ -641,6 +641,12 @@ public class DrehbindingHandler extends BaseThingHandler implements Subscriber, 
              */
             unsubscribeFromAllTopicsLocaly();
         }
+
+        logger.debug("Resetting added Flag");
+        addedFlagLock.lock();
+        addedFlag = false;
+        addedFlagLock.unlock();
+
     }
 
     private boolean isDeviceRelevant(RemoteDevice device) {
