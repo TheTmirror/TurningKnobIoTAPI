@@ -13,21 +13,19 @@ class DeviceInformations:
     
     def fill(self):
         logging.info('Filling Device Informations')
-        def getNamespace(element):
-            import re
-            m = re.match('\{.*\}', element.tag)
-            return m.group(0) if m else ''
 
         import xml.etree.ElementTree as ET
         tree = ET.parse(self.informationSource)
         root = tree.getroot()
-        namespace = getNamespace(root)
 
         for child in root:
             if child.tag == 'configId':
                 self.configId = child.text
             elif child.tag == 'upnpVersion':
                 self.upnpVersion = child.text
+                index = self.upnpVersion.index('.')
+                self.major = self.upnpVersion[0:index]
+                self.minor = self.upnpVersion[index+1:len(self.upnpVersion)]
             elif child.tag == 'domainName':
                 self.domainName = child.text
             elif child.tag == 'deviceType':
@@ -53,15 +51,15 @@ class DiscoveryDescriptionCreator:
 
     targetFile = '/home/pi/Desktop/api/deviceInformations/discovery.xml'
 
-    def createDeviceDescription(self, deviceInformations):
-        logging.info('Creating desscription.xml')
+    def createDeviceDescription(self, infos):
+        logging.info('Creating description.xml')
 
         import xml.etree.ElementTree as ET
         root = ET.Element('root')
         tree = ET.ElementTree(root)
 
         #ET.register_namespace('xmlns', 'urn:schemas-upnp-org:device-1-0')
-        root.set('xmls', 'urn:schemas-upnp-org:device-1-0')
+        root.set('xmlns', 'urn:schemas-upnp-org:device-1-0')
         root.set('configID', infos.configId)
 
         specVersion = ET.SubElement(root, 'specVersion')
@@ -77,8 +75,8 @@ class DiscoveryDescriptionCreator:
         serialNumber = ET.SubElement(device, 'serialNumber')
         UDN = ET.SubElement(device, 'UDN')
 
-        major.text = ''
-        minor.text = ''
+        major.text = infos.major
+        minor.text = infos.minor
         deviceType.text = 'urn:' + infos.domainName + ':device:' + infos.deviceType + ':' + infos.version
         friendlyName.text = infos.friendlyName
         manufacturer.text = infos.manufacturer
@@ -115,25 +113,25 @@ class DiscoveryDescriptionInformations:
         namespace = self.getNamespace(root)
 
         for child in root.find(namespace + 'specVersion'):
-            if child.tag == 'major':
+            if child.tag == namespace + 'major':
                 self.major = child.text
-            elif child.tag == 'minor':
+            elif child.tag == namespace + 'minor':
                 self.minor = child.text
 
         for child in root.find(namespace + 'device'):
-            if child.tag == 'deviceType':
+            if child.tag == namespace + 'deviceType':
                 self.deviceType = child.text
-            elif child.tag == 'friendlyName':
+            elif child.tag == namespace + 'friendlyName':
                 self.friendlyName = child.text
-            elif child.tag == 'manufacturer':
+            elif child.tag == namespace + 'manufacturer':
                 self.manufacturer = child.text
-            elif child.tag == 'modelName':
+            elif child.tag == namespace + 'modelName':
                 self.modelName = child.text
-            elif child.tag == 'modelNumber':
+            elif child.tag == namespace + 'modelNumber':
                 self.modelNumber = child.text
-            elif child.tag == 'serialNumber':
+            elif child.tag == namespace + 'serialNumber':
                 self.serialNumber = child.text
-            elif child.tag == 'UDN':
+            elif child.tag == namespace + 'UDN':
                 self.UDN = child.text
 
 if __name__ == '__main__':
@@ -149,9 +147,9 @@ if __name__ == '__main__':
     creator = DiscoveryDescriptionCreator()
     creator.createDeviceDescription(infos)
 
-    infos = DiscoveryDescriptionInformations()
-    print(infos.UDN)
-    infos = DiscoveryDescriptionInformations()
-    print(infos.UDN)
-    infos = DiscoveryDescriptionInformations()
-    print(infos.UDN)
+    #infos = DiscoveryDescriptionInformations()
+    #print(infos.UDN)
+    #infos = DiscoveryDescriptionInformations()
+    #print(infos.UDN)
+    #infos = DiscoveryDescriptionInformations()
+    #print(infos.UDN)

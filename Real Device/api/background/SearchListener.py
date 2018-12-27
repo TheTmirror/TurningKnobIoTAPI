@@ -18,7 +18,7 @@ class SearchListener(Thread):
     MULTICAST_ADDRESS = '239.255.255.250'
     MULTICAST_PORT = 1900
 
-    DDD_LOCATION = 'http://localhost:9090/discovery.xml'
+    DDD_LOCATION = 'http://192.168.2.109:5000/discovery.xml'
     SERVER = 'WINDOWS/7, UPnP/1.0, Drehknopf/1.0'
     ST_ALL = 'ssdp:all'
     ST_1 = 'upnp:rootdevice'
@@ -112,7 +112,7 @@ class SearchListener(Thread):
             data, addr = self.jobList.get(True)
 
             if self.isSearch(data):
-                logging.info('Received M-SEARCH')
+                logging.debug('Received M-SEARCH')
                 self.processMessage(data, addr)
             
 
@@ -121,7 +121,7 @@ class SearchListener(Thread):
         while True:
             response = self.doneJobs.get(True)
             self.sendsock.sendto(response.msg.encode('utf-8'), (response.addr, response.port))
-            logging.info('Sent response')
+            logging.debug('Sent response')
 
     def isSearch(self, job):
         return job.startswith('M-SEARCH')

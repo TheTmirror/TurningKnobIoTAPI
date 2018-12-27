@@ -4,11 +4,15 @@ import logging
 
 class SubscriptionManager:
 
+    newLock = Lock()
     _instance = None
     def __new__(self):
+        self.newLock.acquire()
         if not self._instance:
             self._instance = super(SubscriptionManager, self).__new__(self)
             self._instance.initialize()
+            logging.debug('Created a new instance of SSubscriptionManager')
+        self.newLock.release()
         return self._instance
 
     def initialize(self):
@@ -54,24 +58,34 @@ class SubscriptionManager:
             
     def addSubscription(self, sub):
         if not self.isSameBootid(sub):
+            logging.info('New Bootid is available - removing old entries')
             self.lock.acquire()
-            #sublock.acquire()
             keysToRemove = self.partial_match_keys((None, sub.subscriberIdentifier, None), self.subs)
             logging.debug('Keys to remove are: %s' % keysToRemove)
             for topic, subid, bootid in keysToRemove:
                 del self.subs[(topic, subid, bootid)]
                 logging.debug('%s - %s removed' % (topic, subid))
             self.lock.release()
-            #sublock.release()
 
         self.lock.acquire()
         self.subs[(sub.topic, sub.subscriberIdentifier, sub.bootid)] = sub
         self.lock.release()
+        logging.info('Added subscription')
 
-    def removeSubscription(topic, subscriber, bootid):
+    def removeSubscription(self, topic, subscriber, bootid):
         self.lock.acquire()
-        del self.subs[(topic, subscriber, bootid)]
+        if self.subs.get((topic, subscriber, bootid), None) is None:
+            logging.debug('Nothing to remove')
+        else:
+            del self.subs[(topic, subscriber, bootid)]
+            logging.debug('Requested Subscription got removed')
         self.lock.release()
+
+    def getSubscriptionsForTopicX(self, topic):
+        self.lock.acquire()
+        result = self.partial_match_values((topic, None, None), self.subs)
+        self.lock.release()
+        return result
 
 if __name__ == '__main__':
     from Subscription import Subscription
@@ -83,6 +97,7 @@ if __name__ == '__main__':
     s4 = Subscription(subscriberIdentifier='sd', topic='th', bootid=1)
     s5 = Subscription(subscriberIdentifier='sd', topic='ti', bootid=1)
     s6 = Subscription(subscriberIdentifier='sd', topic='th', bootid=2)
+    s7 = Subscription(subscriberIdentifier='sr', topic='th', bootid=2)
 
     sm.addSubscription(s1)
     logging.debug(sm.subs)
@@ -93,3 +108,13 @@ if __name__ == '__main__':
     logging.debug(sm.subs)
     sm.addSubscription(s6)
     logging.debug(sm.subs)
+
+    sm.removeSubscription('a', 'b', 'c')
+    sm.removeSubscription(s1.topic, s1.subscriberIdentifier, s1.bootid)
+    sm.removeSubscription(s4.topic, s4.subscriberIdentifier, s4.bootid)
+    sm.removeSubscription(s6.topic, s6.subscriberIdentifier, s6.bootid)
+    logging.debug(sm.subs)
+
+    sm.addSubscription(s6)
+    sm.addSubscription(s7)
+    logging.debug(sm.getSubscriptionsForTopicX('th'))

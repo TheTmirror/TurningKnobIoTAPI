@@ -8,7 +8,7 @@ import logging
 
 class UpnpManager(Thread):
 
-    expiration_time = 60;
+    expiration_time = 30;
 
     def __init__(self):
         Thread.__init__(self)

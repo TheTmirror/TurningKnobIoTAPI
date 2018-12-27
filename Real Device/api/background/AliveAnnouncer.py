@@ -12,7 +12,7 @@ class AliveAnnouncer:
     MULTICAST_ADDRESS = '239.255.255.250'
     MULTICAST_PORT = 1900
 
-    DDD_LOCATION = 'http://localhost:9090/discovery.xml'
+    DDD_LOCATION = 'http://192.168.2.109:5000/discovery.xml'
     SERVER = 'WINDOWS/7, UPnP/1.0, Drehknopf/1.0'
     NT_1 = 'upnp:rootdevice'
     NTS = 'ssdp:alive'
