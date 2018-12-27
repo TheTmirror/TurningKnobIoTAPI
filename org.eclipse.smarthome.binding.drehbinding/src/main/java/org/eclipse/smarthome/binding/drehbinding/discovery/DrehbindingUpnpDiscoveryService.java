@@ -124,8 +124,8 @@ public class DrehbindingUpnpDiscoveryService implements UpnpDiscoveryParticipant
             logger.trace("Man: " + details.getManufacturerDetails().getManufacturer());
             logger.trace("Modell: " + details.getModelDetails().getModelName());
 
-            if (details.getManufacturerDetails().getManufacturer().toLowerCase().equals("tristandiy")
-                    && details.getModelDetails().getModelName().toLowerCase().equals("drehknopfprototyp")) {
+            if (details.getManufacturerDetails().getManufacturer().toLowerCase().equals("tristan")
+                    && details.getModelDetails().getModelName().toLowerCase().equals("drehknopfprototype")) {
                 return new ThingUID(THING_TYPE_DREHKNOPF, details.getSerialNumber());
             }
 

@@ -63,7 +63,7 @@ public class RESTIOServiceImpl implements RESTIOService {
 
     @Override
     public void addSubscription(Subscriber subscriber, String topic, long bootid) {
-        String urlString = "http://localhost:9090/webapi/subscriptionService";
+        String urlString = "http://192.168.2.109:5000/subscribe";
         URL url = null;
         try {
             url = new URL(urlString);
@@ -96,7 +96,7 @@ public class RESTIOServiceImpl implements RESTIOService {
     @Override
     public void removeSubscription(Subscriber subscriber, String topic, long bootid) {
         // url muss iwie aus den Discovery Configs gewonnen werden
-        String urlString = "http://localhost:9090/webapi/subscriptionService";
+        String urlString = "http://192.168.2.109:5000/unsubscribe";
         URL url = null;
         try {
             url = new URL(urlString);
