@@ -20,10 +20,10 @@ public class Reader extends Thread {
 				DatagramPacket packet = new DatagramPacket(buf, buf.length);
 				multiSocket.receive(packet);
 				String msg = new String(packet.getData());
-				if(msg.contains("meinErsterDrehknopf-v0.02")) {
-					System.out.println("Received the following msg:");
-					System.out.println(msg);
-				}
+//				if(msg.contains("meinErsterDrehknopf-v0.02")) {
+				System.out.println("Received the following msg:");
+				System.out.println(msg);
+//				}
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
