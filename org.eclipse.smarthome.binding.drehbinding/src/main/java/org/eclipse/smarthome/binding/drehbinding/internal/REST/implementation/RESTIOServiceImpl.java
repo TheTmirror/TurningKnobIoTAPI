@@ -10,6 +10,8 @@ import org.eclipse.smarthome.binding.drehbinding.eventing.Subscriber;
 import org.eclipse.smarthome.binding.drehbinding.eventing.SubscriptionServiceImpl;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTIOService;
 import org.eclipse.smarthome.binding.drehbinding.internal.REST.RESTService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Is ThreadSafe
@@ -28,6 +30,8 @@ public class RESTIOServiceImpl implements RESTIOService {
     private static final String PUT = "PUT";
     private static final String POST = "POST";
     private static final String DELETE = "DELETE";
+
+    private final Logger logger = LoggerFactory.getLogger(RESTIOServiceImpl.class);
 
     private RESTIOServiceImpl() {
 
@@ -82,6 +86,7 @@ public class RESTIOServiceImpl implements RESTIOService {
         try {
             response = RESTService.makeRestCall(request);
         } catch (IOException e) {
+            logger.error("Eine Exception trat auf!");
             SubscriptionServiceImpl.getInstance().onFailedRemoteSubscription(subscriber, topic);
             return;
         }

@@ -67,6 +67,16 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                     logger.trace("Received: " + clientSentence);
                     connection.close();
 
+                    /*
+                     * Es kann vorkommen, dass bei einem Fehler auf der Deviceseite das Device trotzdem eine Null
+                     * Nachricht verschickt. Diese kann nicht verarbeitet werden und wird daher ignoriert.
+                     */
+                    if (clientSentence == null) {
+                        logger.warn("Received callback message was null - therefor ignoring it");
+                        shutdownLock.lock();
+                        continue;
+                    }
+
                     String topic = decipherTopic(clientSentence);
                     Map<String, String> values = decipherValues(clientSentence);
                     notifyAllSubscriber(topic, values);
