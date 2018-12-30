@@ -8,6 +8,7 @@ class APIController:
 
     def setupAPI(self):
         from XML import DeviceInformations, DiscoveryDescriptionCreator, DiscoveryDescriptionInformations
+        logging.basicConfig(level=logging.INFO)
         logging.info('Setting up device description')
         di = DeviceInformations()
         ddc = DiscoveryDescriptionCreator()

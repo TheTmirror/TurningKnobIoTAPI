@@ -7,10 +7,6 @@ import socket
 class SubscriptionService:
 
     api = Blueprint('api', __name__)
-
-    def __init__(self):
-        logging.warning('New instance was created')
-
     
     @api.route("/subscribe", methods=['POST'])
     def subscribe():
