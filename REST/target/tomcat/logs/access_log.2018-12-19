@@ -1,2 +1,0 @@
-127.0.0.1 - - [19/Dec/2018:15:04:53 +0100] "GET /discovery.xml HTTP/1.1" 200 1365 http-bio-9090-exec-1 52
-127.0.0.1 - - [19/Dec/2018:15:04:53 +0100] "POST /webapi/subscriptionService HTTP/1.1" 204 - http-bio-9090-exec-2 52
